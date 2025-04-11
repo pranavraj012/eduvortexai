@@ -1,4 +1,3 @@
-
 import React, { createContext, useState, useContext, ReactNode, useEffect } from 'react';
 import { useAuth } from './AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -65,6 +64,25 @@ const defaultStats: UserStats = {
 
 const LearningContext = createContext<LearningContextType | undefined>(undefined);
 
+const convertDbRoadmapToRoadmap = (dbRoadmap: any): Roadmap => {
+  return {
+    id: dbRoadmap.id,
+    title: dbRoadmap.title,
+    description: dbRoadmap.description || '',
+    nodes: Array.isArray(dbRoadmap.nodes) ? dbRoadmap.nodes.map((node: any) => ({
+      id: node.id,
+      title: node.title,
+      description: node.description || '',
+      completed: node.completed || false,
+      xp: node.xp || 100,
+      position: typeof node.position === 'object' ? node.position : { x: 0, y: 0 },
+      connections: Array.isArray(node.connections) ? node.connections : [],
+      content: node.content
+    })) : [],
+    createdAt: dbRoadmap.created_at || new Date().toISOString()
+  };
+};
+
 export const LearningProvider = ({ children }: { children: ReactNode }) => {
   const { user } = useAuth();
   const [activeRoadmap, setActiveRoadmap] = useState<Roadmap | null>(null);
@@ -109,7 +127,6 @@ export const LearningProvider = ({ children }: { children: ReactNode }) => {
   const [stats, setStats] = useState<UserStats>(defaultStats);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Load user data when authenticated
   useEffect(() => {
     if (user) {
       loadUserData();
@@ -124,7 +141,6 @@ export const LearningProvider = ({ children }: { children: ReactNode }) => {
   const loadUserData = async () => {
     setIsLoading(true);
     try {
-      // Load user roadmaps
       const { data: roadmapsData, error: roadmapsError } = await supabase
         .from('roadmaps')
         .select('*')
@@ -132,7 +148,6 @@ export const LearningProvider = ({ children }: { children: ReactNode }) => {
 
       if (roadmapsError) throw roadmapsError;
 
-      // For each roadmap, load its nodes
       const roadmapsWithNodes = await Promise.all(roadmapsData.map(async (roadmap) => {
         const { data: nodesData, error: nodesError } = await supabase
           .from('roadmap_nodes')
@@ -141,18 +156,14 @@ export const LearningProvider = ({ children }: { children: ReactNode }) => {
 
         if (nodesError) throw nodesError;
 
-        return {
+        return convertDbRoadmapToRoadmap({
           ...roadmap,
-          nodes: nodesData.map(node => ({
-            ...node,
-            connections: node.connections || []
-          }))
-        };
+          nodes: nodesData
+        });
       }));
 
       setUserRoadmaps(roadmapsWithNodes);
 
-      // Load user stats
       const { data: statsData, error: statsError } = await supabase
         .from('user_stats')
         .select('*')
@@ -172,7 +183,6 @@ export const LearningProvider = ({ children }: { children: ReactNode }) => {
         });
       }
 
-      // Load user achievements
       const { data: achievementsData, error: achievementsError } = await supabase
         .from('user_achievements')
         .select('*')
@@ -180,7 +190,6 @@ export const LearningProvider = ({ children }: { children: ReactNode }) => {
 
       if (achievementsError) throw achievementsError;
 
-      // Update achievement unlocked status
       const updatedAchievements = achievements.map(achievement => {
         const found = achievementsData.find(a => a.achievement_id === achievement.id);
         return {
@@ -207,7 +216,6 @@ export const LearningProvider = ({ children }: { children: ReactNode }) => {
     if (!user) return;
 
     try {
-      // Update node completion status
       const { error: updateNodeError } = await supabase
         .from('roadmap_nodes')
         .update({ completed: true })
@@ -215,7 +223,6 @@ export const LearningProvider = ({ children }: { children: ReactNode }) => {
 
       if (updateNodeError) throw updateNodeError;
 
-      // Update the user roadmaps state
       setUserRoadmaps(prevRoadmaps => 
         prevRoadmaps.map(roadmap => 
           roadmap.id === roadmapId
@@ -231,7 +238,6 @@ export const LearningProvider = ({ children }: { children: ReactNode }) => {
         )
       );
 
-      // Update user stats
       const { data: statsData, error: statsError } = await supabase
         .from('user_stats')
         .update({
@@ -249,12 +255,10 @@ export const LearningProvider = ({ children }: { children: ReactNode }) => {
         }));
       }
 
-      // Check if this unlocks any achievements
       if (stats.nodesCompleted === 0) {
         unlockAchievement("2"); // Knowledge Seeker
       }
 
-      // Check if the roadmap is completed
       const updatedRoadmap = userRoadmaps.find(r => r.id === roadmapId);
       if (updatedRoadmap) {
         const allNodesCompleted = updatedRoadmap.nodes.every(node => 
@@ -262,7 +266,6 @@ export const LearningProvider = ({ children }: { children: ReactNode }) => {
         );
 
         if (allNodesCompleted) {
-          // Update roadmaps completed count
           const { error: updateStatsError } = await supabase
             .from('user_stats')
             .update({
@@ -277,7 +280,6 @@ export const LearningProvider = ({ children }: { children: ReactNode }) => {
             roadmapsCompleted: prev.roadmapsCompleted + 1,
           }));
 
-          // Unlock achievement if this is the first roadmap completed
           if (stats.roadmapsCompleted === 0) {
             unlockAchievement("3"); // Path Finder
           }
@@ -298,7 +300,6 @@ export const LearningProvider = ({ children }: { children: ReactNode }) => {
     if (!user) return;
 
     try {
-      // Insert the roadmap
       const { data: newRoadmap, error: roadmapError } = await supabase
         .from('roadmaps')
         .insert({
@@ -311,7 +312,6 @@ export const LearningProvider = ({ children }: { children: ReactNode }) => {
 
       if (roadmapError) throw roadmapError;
 
-      // Insert all the nodes
       const nodesWithRoadmapId = roadmap.nodes.map(node => ({
         roadmap_id: newRoadmap.id,
         title: node.title,
@@ -320,7 +320,7 @@ export const LearningProvider = ({ children }: { children: ReactNode }) => {
         xp: node.xp,
         position: node.position,
         connections: node.connections,
-        content: null
+        content: node.content
       }));
 
       const { data: newNodes, error: nodesError } = await supabase
@@ -330,19 +330,13 @@ export const LearningProvider = ({ children }: { children: ReactNode }) => {
 
       if (nodesError) throw nodesError;
 
-      // Add the new roadmap to the state
-      const completeRoadmap = {
+      const completeRoadmap = convertDbRoadmapToRoadmap({
         ...newRoadmap,
-        nodes: newNodes.map(node => ({
-          ...node,
-          connections: node.connections || [],
-        })),
-        createdAt: newRoadmap.created_at
-      };
+        nodes: newNodes
+      });
 
       setUserRoadmaps(prev => [...prev, completeRoadmap]);
       
-      // Set as active roadmap
       setActiveRoadmap(completeRoadmap);
 
       toast({
@@ -394,7 +388,6 @@ export const LearningProvider = ({ children }: { children: ReactNode }) => {
 
       if (error) throw error;
 
-      // Update local state
       setUserRoadmaps(prevRoadmaps => 
         prevRoadmaps.map(roadmap => 
           roadmap.id === roadmapId
@@ -410,7 +403,6 @@ export const LearningProvider = ({ children }: { children: ReactNode }) => {
         )
       );
 
-      // Update active roadmap if it's the one being modified
       if (activeRoadmap?.id === roadmapId) {
         setActiveRoadmap({
           ...activeRoadmap,
@@ -435,7 +427,6 @@ export const LearningProvider = ({ children }: { children: ReactNode }) => {
   const unlockAchievement = async (achievementId: string) => {
     if (!user) return;
 
-    // Check if achievement is already unlocked
     const achievement = achievements.find(a => a.id === achievementId);
     if (achievement?.unlockedAt) return;
 
@@ -449,7 +440,6 @@ export const LearningProvider = ({ children }: { children: ReactNode }) => {
 
       if (error) throw error;
 
-      // Update local state
       setAchievements(prev => 
         prev.map(achievement => 
           achievement.id === achievementId
@@ -458,7 +448,6 @@ export const LearningProvider = ({ children }: { children: ReactNode }) => {
         )
       );
 
-      // Show achievement unlock toast
       const unlockedAchievement = achievements.find(a => a.id === achievementId);
       if (unlockedAchievement) {
         toast({
@@ -472,7 +461,6 @@ export const LearningProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  // Get recent roadmaps (last 5 created)
   const recentRoadmaps = [...userRoadmaps]
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
     .slice(0, 5);

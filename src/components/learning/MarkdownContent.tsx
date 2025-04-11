@@ -9,12 +9,20 @@ interface MarkdownContentProps {
   className?: string;
 }
 
+interface CodeProps {
+  node: any;
+  inline: boolean;
+  className?: string;
+  children: React.ReactNode;
+  [key: string]: any;
+}
+
 const MarkdownContent: React.FC<MarkdownContentProps> = ({ content, className = '' }) => {
   return (
     <div className={`prose prose-invert max-w-none ${className}`}>
       <ReactMarkdown
         components={{
-          code({ node, inline, className, children, ...props }) {
+          code({ node, inline, className, children, ...props }: CodeProps) {
             const match = /language-(\w+)/.exec(className || '');
             return !inline && match ? (
               <SyntaxHighlighter
