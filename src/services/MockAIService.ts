@@ -14,6 +14,16 @@ interface AIChat {
   timestamp: string;
 }
 
+interface RoadmapOptions {
+  topic: string;
+  timeframe?: string;
+}
+
+interface NodeContent {
+  title: string;
+  content: string;
+}
+
 class MockAIService {
   private static delay(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
@@ -27,21 +37,21 @@ class MockAIService {
   }
 
   // This method would use the Google API when fully implemented
-  // Currently still using mock data
-  static async generateRoadmap(topic: string): Promise<Roadmap> {
+  static async generateRoadmap(options: RoadmapOptions): Promise<Roadmap> {
     await this.delay(1500); // Simulate API call delay
     
     // In a full implementation, this would use the Google API
-    // if (this.googleApiKey) {
-    //   // Make actual API call to Google's Gemini API
-    // }
+    if (this.googleApiKey) {
+      console.log(`Generating roadmap for topic: ${options.topic} with timeframe: ${options.timeframe || 'not specified'}`);
+      // This is where we would make the actual API call to Google's Gemini API
+    }
     
-    const nodes = this.generateNodesForTopic(topic);
+    const nodes = this.generateNodesForTopic(options.topic, options.timeframe);
     
     return {
       id: `roadmap-${Date.now()}`,
-      title: `Learning Path: ${topic}`,
-      description: `A comprehensive learning path for mastering ${topic}.`,
+      title: `Learning Path: ${options.topic}`,
+      description: `A comprehensive learning path for mastering ${options.topic} ${options.timeframe ? `in ${options.timeframe}` : ''}.`,
       nodes,
       createdAt: new Date().toISOString()
     };
@@ -87,6 +97,39 @@ class MockAIService {
     ];
   }
   
+  static async generateNodeContent(topic: string, nodeTitle: string): Promise<NodeContent> {
+    await this.delay(1000); // Simulate API call delay
+    
+    return {
+      title: nodeTitle,
+      content: `
+# ${nodeTitle}
+
+## Introduction
+${topic} is a fascinating field that continues to evolve. ${nodeTitle} is a critical component that helps understand the broader concepts.
+
+## Key Concepts
+- First principle of ${nodeTitle}
+- Second principle of ${nodeTitle}
+- Practical applications of ${nodeTitle}
+
+## Examples
+Here's a simple example to illustrate the concept:
+
+\`\`\`javascript
+// Sample code related to ${topic}
+function example() {
+  console.log("Learning about ${nodeTitle}");
+  return "Understanding achieved";
+}
+\`\`\`
+
+## Summary
+Understanding ${nodeTitle} is essential for mastering ${topic}. Continue practicing the concepts to reinforce your learning.
+      `
+    };
+  }
+  
   static async chatWithAI(message: string): Promise<AIChat> {
     await this.delay(800); // Simulate API call delay
     
@@ -96,7 +139,7 @@ class MockAIService {
       response = "I can help you with your learning journey. You can ask me to explain concepts, generate quizzes, or create personalized learning paths.";
     } else if (message.toLowerCase().includes('explain')) {
       const topic = message.replace(/explain/i, '').trim();
-      response = `${topic} is a fascinating subject that involves understanding key principles and applying them in various contexts. The core concepts include theoretical foundations and practical applications.`;
+      response = `# ${topic} Explained\n\n${topic} is a fascinating subject that involves understanding key principles and applying them in various contexts.\n\n## Core Concepts\n- Theoretical foundations\n- Practical applications\n- Modern developments\n\n### Example\n\`\`\`javascript\n// Example code\nfunction learn${topic.replace(/\s/g, '')}() {\n  return "Understanding achieved";\n}\n\`\`\``;
     } else if (message.toLowerCase().includes('quiz')) {
       response = "I can generate quizzes on any topic. Just navigate to a learning node and click the 'Generate Quiz' button.";
     } else if (message.toLowerCase().includes('roadmap')) {
@@ -112,8 +155,8 @@ class MockAIService {
     };
   }
   
-  private static generateNodesForTopic(topic: string): RoadmapNode[] {
-    let nodeCount = 5;
+  private static generateNodesForTopic(topic: string, timeframe?: string): RoadmapNode[] {
+    let nodeCount = timeframe ? this.getNodeCountForTimeframe(timeframe) : 5;
     let nodes: RoadmapNode[] = [];
     
     const baseX = 300;
@@ -129,12 +172,13 @@ class MockAIService {
       
       const node: RoadmapNode = {
         id: `node-${i}-${Date.now()}`,
-        title: this.generateNodeTitle(topic, i),
-        description: this.generateNodeDescription(topic, i),
+        title: this.generateNodeTitle(topic, i, timeframe),
+        description: this.generateNodeDescription(topic, i, timeframe),
         completed: false,
         xp: 50 + i * 10,
         position,
-        connections: []
+        connections: [],
+        content: null
       };
       
       // Add connections to previous nodes (except for the first node)
@@ -155,7 +199,26 @@ class MockAIService {
     return nodes;
   }
   
-  private static generateNodeTitle(topic: string, index: number): string {
+  private static getNodeCountForTimeframe(timeframe: string): number {
+    const timeframeLower = timeframe.toLowerCase();
+    
+    if (timeframeLower.includes('week') || timeframeLower.includes('7 day')) {
+      return 3;
+    } else if (timeframeLower.includes('month') || timeframeLower.includes('30 day')) {
+      return 5;
+    } else if (timeframeLower.includes('3 month') || timeframeLower.includes('quarter')) {
+      return 7;
+    } else if (timeframeLower.includes('6 month') || timeframeLower.includes('semester')) {
+      return 9;
+    } else if (timeframeLower.includes('year')) {
+      return 12;
+    } else {
+      // Default
+      return 5;
+    }
+  }
+  
+  private static generateNodeTitle(topic: string, index: number, timeframe?: string): string {
     const starter = [
       "Introduction to",
       "Fundamentals of",
@@ -183,7 +246,7 @@ class MockAIService {
       return `Introduction to ${topic}`;
     } else if (index === 1) {
       return `${topic} Fundamentals`;
-    } else if (index === 4) {
+    } else if (index === Math.max(this.getNodeCountForTimeframe(timeframe || '') - 1, 4)) {
       return `Advanced ${topic}`;
     } else {
       const start = starter[Math.floor(Math.random() * starter.length)];
@@ -192,7 +255,7 @@ class MockAIService {
     }
   }
   
-  private static generateNodeDescription(topic: string, index: number): string {
+  private static generateNodeDescription(topic: string, index: number, timeframe?: string): string {
     const descriptions = [
       `Learn the core principles and foundational concepts of ${topic}.`,
       `Explore the practical applications and real-world examples of ${topic}.`,

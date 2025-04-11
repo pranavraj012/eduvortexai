@@ -1,9 +1,11 @@
+
 import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Send, Bot, User, Loader2 } from 'lucide-react';
 import MockAIService from '@/services/MockAIService';
 import { useConfig } from '@/components/layout/MainLayout';
+import MarkdownContent from './MarkdownContent';
 
 interface ChatMessage {
   id: string;
@@ -110,7 +112,11 @@ const AIChat = () => {
                 )}
               </div>
               <div className="space-y-1">
-                <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                {message.role === 'user' ? (
+                  <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                ) : (
+                  <MarkdownContent content={message.content} className="text-sm" />
+                )}
                 <p className="text-xs text-muted-foreground">
                   {message.timestamp.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                 </p>

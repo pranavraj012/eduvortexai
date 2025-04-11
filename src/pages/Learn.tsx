@@ -3,21 +3,35 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Search, BookOpen, MessageSquare, Brain } from 'lucide-react';
+import { Search, BookOpen, MessageSquare, Brain, Clock, History, Award } from 'lucide-react';
 import RoadmapCanvas from '@/components/learning/RoadmapCanvas';
 import AIChat from '@/components/learning/AIChat';
-import { useLearning, RoadmapNode } from '@/context/LearningContext';
+import { useLearning, RoadmapNode, Roadmap } from '@/context/LearningContext';
 import MockAIService from '@/services/MockAIService';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import QuizComponent from '@/components/learning/QuizComponent';
+import NodeContentViewer from '@/components/learning/NodeContentViewer';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { toast } from '@/components/ui/use-toast';
 
 const Learn = () => {
-  const { activeRoadmap, userRoadmaps, setActiveRoadmap, addRoadmap, completeNode } = useLearning();
+  const { 
+    activeRoadmap, 
+    userRoadmaps, 
+    recentRoadmaps,
+    setActiveRoadmap, 
+    addRoadmap, 
+    completeNode,
+    updateNodeContent
+  } = useLearning();
+  
   const [searchTopic, setSearchTopic] = useState('');
+  const [timeframe, setTimeframe] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [activeNode, setActiveNode] = useState<RoadmapNode | null>(null);
   const [activeTab, setActiveTab] = useState('roadmap');
   const [showQuiz, setShowQuiz] = useState(false);
+  const [showContent, setShowContent] = useState(false);
   
   const handleGenerateRoadmap = async () => {
     if (!searchTopic.trim()) return;
@@ -25,13 +39,28 @@ const Learn = () => {
     setIsGenerating(true);
     
     try {
-      const newRoadmap = await MockAIService.generateRoadmap(searchTopic);
+      const newRoadmap = await MockAIService.generateRoadmap({
+        topic: searchTopic,
+        timeframe: timeframe || undefined
+      });
+      
       addRoadmap(newRoadmap);
       setActiveRoadmap(newRoadmap);
       setActiveNode(null);
       setShowQuiz(false);
+      setShowContent(false);
+      
+      toast({
+        title: "Roadmap Generated",
+        description: `Learning path for "${searchTopic}" has been created.`,
+      });
     } catch (error) {
       console.error('Error generating roadmap:', error);
+      toast({
+        title: "Generation Failed",
+        description: "Unable to generate roadmap. Please try again.",
+        variant: "destructive"
+      });
     } finally {
       setIsGenerating(false);
     }
@@ -40,6 +69,7 @@ const Learn = () => {
   const handleNodeSelect = (node: RoadmapNode) => {
     setActiveNode(node);
     setShowQuiz(false);
+    setShowContent(false);
   };
   
   const handleCompleteNode = () => {
@@ -52,15 +82,110 @@ const Learn = () => {
       if (updatedNode) {
         setActiveNode(updatedNode);
       }
+      
+      toast({
+        title: "Node Completed",
+        description: `You've completed "${activeNode.title}" and earned ${activeNode.xp} XP!`,
+      });
     }
   };
   
   const handleStartQuiz = () => {
     setShowQuiz(true);
+    setShowContent(false);
+  };
+  
+  const handleViewContent = () => {
+    setShowContent(true);
+    setShowQuiz(false);
   };
   
   const handleQuizComplete = () => {
     handleCompleteNode();
+  };
+  
+  const handleContentUpdate = (roadmapId: string, nodeId: string, content: string) => {
+    updateNodeContent(roadmapId, nodeId, content);
+    
+    // Update the active node with new content if it's the one being updated
+    if (activeNode && activeNode.id === nodeId) {
+      setActiveNode({
+        ...activeNode,
+        content
+      });
+    }
+  };
+  
+  const selectRoadmap = (roadmap: Roadmap) => {
+    setActiveRoadmap(roadmap);
+    setActiveNode(null);
+    setShowQuiz(false);
+    setShowContent(false);
+  };
+  
+  const renderMainContent = () => {
+    if (showContent && activeRoadmap && activeNode) {
+      return (
+        <NodeContentViewer 
+          node={activeNode}
+          topic={activeRoadmap.title.replace('Learning Path:', '').trim()}
+          roadmapId={activeRoadmap.id}
+          onContentUpdate={handleContentUpdate}
+          onClose={() => setShowContent(false)}
+        />
+      );
+    }
+    
+    if (showQuiz && activeRoadmap && activeNode) {
+      return (
+        <QuizComponent 
+          topic={activeRoadmap.title.replace('Learning Path:', '').trim()} 
+          nodeId={activeNode.id}
+          onComplete={handleQuizComplete}
+        />
+      );
+    }
+    
+    if (activeRoadmap) {
+      return (
+        <div className="glass-card p-4 rounded-lg h-full overflow-hidden">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-medium">{activeRoadmap.title}</h2>
+            
+            <div className="text-sm text-muted-foreground">
+              {activeRoadmap.nodes.filter(n => n.completed).length} / {activeRoadmap.nodes.length} completed
+            </div>
+          </div>
+          
+          <div className="h-[calc(100%-40px)] overflow-hidden">
+            <RoadmapCanvas 
+              nodes={activeRoadmap.nodes} 
+              activeNodeId={activeNode?.id || null}
+              onNodeSelect={handleNodeSelect}
+            />
+          </div>
+        </div>
+      );
+    }
+    
+    return (
+      <div className="glass-card p-6 rounded-lg h-full flex items-center justify-center">
+        <div className="text-center max-w-md">
+          <Brain className="h-16 w-16 mx-auto mb-4 text-edu-purple opacity-50" />
+          <h2 className="text-xl font-medium mb-2">No Active Roadmap</h2>
+          <p className="text-muted-foreground mb-4">
+            Generate a learning path to get started with your personalized learning journey.
+          </p>
+          <Button 
+            className="bg-edu-purple hover:bg-edu-deepPurple"
+            onClick={() => document.querySelector('input')?.focus()}
+          >
+            <Search className="mr-2 h-4 w-4" />
+            Create a Roadmap
+          </Button>
+        </div>
+      </div>
+    );
   };
   
   return (
@@ -83,7 +208,7 @@ const Learn = () => {
               <CardTitle className="text-lg">Generate Learning Path</CardTitle>
               <CardDescription>Create a personalized roadmap for any topic</CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-4">
               <div className="flex space-x-2">
                 <Input
                   value={searchTopic}
@@ -109,8 +234,59 @@ const Learn = () => {
                   )}
                 </Button>
               </div>
+              
+              <div className="flex items-center space-x-2">
+                <Clock className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm text-muted-foreground">Timeframe:</span>
+                <Select value={timeframe} onValueChange={setTimeframe}>
+                  <SelectTrigger className="flex-1">
+                    <SelectValue placeholder="Any timeframe" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Any timeframe</SelectItem>
+                    <SelectItem value="1 week">1 Week</SelectItem>
+                    <SelectItem value="1 month">1 Month</SelectItem>
+                    <SelectItem value="3 months">3 Months</SelectItem>
+                    <SelectItem value="6 months">6 Months</SelectItem>
+                    <SelectItem value="1 year">1 Year</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </CardContent>
           </Card>
+          
+          {/* Recent Roadmaps */}
+          {recentRoadmaps.length > 0 && (
+            <Card>
+              <CardHeader className="pb-2">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-lg">Recent Roadmaps</CardTitle>
+                  <History className="h-4 w-4 text-muted-foreground" />
+                </div>
+                <CardDescription>Your recently created learning paths</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ul className="space-y-2">
+                  {recentRoadmaps.map(roadmap => (
+                    <li key={roadmap.id}>
+                      <Button 
+                        variant="ghost" 
+                        className="w-full justify-start text-left h-auto py-2"
+                        onClick={() => selectRoadmap(roadmap)}
+                      >
+                        <div className="flex items-center">
+                          <Brain className="h-4 w-4 mr-2 text-edu-purple" />
+                          <div className="truncate">
+                            {roadmap.title.replace('Learning Path:', '').trim()}
+                          </div>
+                        </div>
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+              </CardContent>
+            </Card>
+          )}
           
           {/* Node Details */}
           {activeNode && (
@@ -138,28 +314,37 @@ const Learn = () => {
                   </div>
                 </div>
                 
-                <div className="flex space-x-2">
-                  {!activeNode.completed && (
+                <div className="flex flex-col space-y-2">
+                  <Button 
+                    variant="outline" 
+                    className="w-full justify-center"
+                    onClick={handleViewContent}
+                  >
+                    <BookOpen className="h-4 w-4 mr-2" />
+                    View Content
+                  </Button>
+                  
+                  {!activeNode.completed ? (
                     <>
                       <Button 
                         variant="outline" 
-                        className="flex-1"
+                        className="w-full justify-center"
                         onClick={handleStartQuiz}
                       >
+                        <Award className="h-4 w-4 mr-2" />
                         Take Quiz
                       </Button>
                       <Button 
-                        className="flex-1 bg-edu-purple hover:bg-edu-deepPurple"
+                        className="w-full justify-center bg-edu-purple hover:bg-edu-deepPurple"
                         onClick={handleCompleteNode}
                       >
                         Mark Complete
                       </Button>
                     </>
-                  )}
-                  {activeNode.completed && (
+                  ) : (
                     <Button 
                       variant="outline" 
-                      className="w-full"
+                      className="w-full justify-center"
                       onClick={handleStartQuiz}
                     >
                       Retake Quiz
@@ -194,48 +379,7 @@ const Learn = () => {
             </TabsList>
             
             <TabsContent value="roadmap" className="h-[calc(100%-48px)]">
-              {showQuiz && activeRoadmap && activeNode ? (
-                <QuizComponent 
-                  topic={activeRoadmap.title.replace('Learning Path:', '').trim()} 
-                  nodeId={activeNode.id}
-                  onComplete={handleQuizComplete}
-                />
-              ) : activeRoadmap ? (
-                <div className="glass-card p-4 rounded-lg h-full overflow-hidden">
-                  <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-xl font-medium">{activeRoadmap.title}</h2>
-                    
-                    <div className="text-sm text-muted-foreground">
-                      {activeRoadmap.nodes.filter(n => n.completed).length} / {activeRoadmap.nodes.length} completed
-                    </div>
-                  </div>
-                  
-                  <div className="h-[calc(100%-40px)] overflow-hidden">
-                    <RoadmapCanvas 
-                      nodes={activeRoadmap.nodes} 
-                      activeNodeId={activeNode?.id || null}
-                      onNodeSelect={handleNodeSelect}
-                    />
-                  </div>
-                </div>
-              ) : (
-                <div className="glass-card p-6 rounded-lg h-full flex items-center justify-center">
-                  <div className="text-center max-w-md">
-                    <Brain className="h-16 w-16 mx-auto mb-4 text-edu-purple opacity-50" />
-                    <h2 className="text-xl font-medium mb-2">No Active Roadmap</h2>
-                    <p className="text-muted-foreground mb-4">
-                      Generate a learning path to get started with your personalized learning journey.
-                    </p>
-                    <Button 
-                      className="bg-edu-purple hover:bg-edu-deepPurple"
-                      onClick={() => document.querySelector('input')?.focus()}
-                    >
-                      <Search className="mr-2 h-4 w-4" />
-                      Create a Roadmap
-                    </Button>
-                  </div>
-                </div>
-              )}
+              {renderMainContent()}
             </TabsContent>
             
             <TabsContent value="assistant" className="h-[calc(100%-48px)] hidden lg:block">

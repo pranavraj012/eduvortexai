@@ -17,6 +17,7 @@ export interface RoadmapNode {
   xp: number;
   position: { x: number; y: number };
   connections: string[];
+  content: string | null;
 }
 
 export interface UserAchievement {
@@ -39,12 +40,14 @@ export interface UserStats {
 interface LearningContextType {
   activeRoadmap: Roadmap | null;
   userRoadmaps: Roadmap[];
+  recentRoadmaps: Roadmap[];
   achievements: UserAchievement[];
   stats: UserStats;
   setActiveRoadmap: (roadmap: Roadmap | null) => void;
   completeNode: (roadmapId: string, nodeId: string) => void;
   addRoadmap: (roadmap: Roadmap) => void;
   earnXp: (amount: number) => void;
+  updateNodeContent: (roadmapId: string, nodeId: string, content: string) => void;
 }
 
 const defaultStats: UserStats = {
@@ -138,6 +141,23 @@ export const LearningProvider = ({ children }: { children: ReactNode }) => {
     }));
   };
 
+  const updateNodeContent = (roadmapId: string, nodeId: string, content: string) => {
+    setUserRoadmaps(prevRoadmaps => 
+      prevRoadmaps.map(roadmap => 
+        roadmap.id === roadmapId
+          ? {
+              ...roadmap,
+              nodes: roadmap.nodes.map(node => 
+                node.id === nodeId
+                  ? { ...node, content }
+                  : node
+              )
+            }
+          : roadmap
+      )
+    );
+  };
+
   const unlockAchievement = (achievementId: string) => {
     setAchievements(prev => 
       prev.map(achievement => 
@@ -148,17 +168,24 @@ export const LearningProvider = ({ children }: { children: ReactNode }) => {
     );
   };
 
+  // Get recent roadmaps (last 5 created)
+  const recentRoadmaps = [...userRoadmaps]
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .slice(0, 5);
+
   return (
     <LearningContext.Provider
       value={{
         activeRoadmap,
         userRoadmaps,
+        recentRoadmaps,
         achievements,
         stats,
         setActiveRoadmap,
         completeNode,
         addRoadmap,
         earnXp,
+        updateNodeContent,
       }}
     >
       {children}
