@@ -1,9 +1,11 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { CheckCircle, XCircle, RotateCcw } from 'lucide-react';
 import MockAIService from '@/services/MockAIService';
 import { useLearning } from '@/context/LearningContext';
+import { Loader2 } from 'lucide-react';
+import { toast } from '@/components/ui/use-toast';
 
 interface QuizQuestion {
   id: string;
@@ -27,24 +29,31 @@ const QuizComponent = ({ topic, nodeId, onComplete }: QuizComponentProps) => {
   const [score, setScore] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [quizCompleted, setQuizCompleted] = useState(false);
+  const [xpEarned, setXpEarned] = useState(0);
   
   const { earnXp } = useLearning();
   
   // Load quiz questions
-  useState(() => {
+  useEffect(() => {
     const loadQuiz = async () => {
       try {
+        setIsLoading(true);
         const quizQuestions = await MockAIService.generateQuiz(topic, nodeId);
         setQuestions(quizQuestions);
       } catch (error) {
         console.error('Error loading quiz:', error);
+        toast({
+          title: "Failed to load quiz",
+          description: "There was a problem generating quiz questions. Please try again.",
+          variant: "destructive"
+        });
       } finally {
         setIsLoading(false);
       }
     };
     
     loadQuiz();
-  });
+  }, [topic, nodeId]);
   
   const currentQuestion = questions[currentQuestionIndex];
   
@@ -54,7 +63,7 @@ const QuizComponent = ({ topic, nodeId, onComplete }: QuizComponentProps) => {
   };
   
   const handleSubmitAnswer = () => {
-    if (!selectedOption) return;
+    if (!selectedOption || !currentQuestion) return;
     
     const isAnswerCorrect = selectedOption === currentQuestion.correctAnswer;
     setIsCorrect(isAnswerCorrect);
@@ -77,8 +86,9 @@ const QuizComponent = ({ topic, nodeId, onComplete }: QuizComponentProps) => {
       const percentScore = Math.round((finalScore / totalQuestions) * 100);
       
       // Award XP based on score
-      const xpEarned = Math.round(percentScore * 0.5);
-      earnXp(xpEarned);
+      const earnedXp = Math.round(percentScore * 0.5);
+      setXpEarned(earnedXp);
+      earnXp(earnedXp);
       
       setQuizCompleted(true);
     }
@@ -97,8 +107,25 @@ const QuizComponent = ({ topic, nodeId, onComplete }: QuizComponentProps) => {
     return (
       <div className="glass-card p-6 rounded-lg h-full flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin h-8 w-8 border-4 border-edu-purple border-t-transparent rounded-full mx-auto mb-4"></div>
+          <Loader2 className="h-8 w-8 mx-auto mb-4 animate-spin text-edu-purple" />
           <p>Generating quiz questions...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (questions.length === 0 && !isLoading) {
+    return (
+      <div className="glass-card p-6 rounded-lg h-full flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-red-500 mb-4">
+            <XCircle className="h-8 w-8 mx-auto" />
+          </div>
+          <h3 className="text-xl font-semibold mb-2">Failed to Generate Quiz</h3>
+          <p className="text-muted-foreground mb-4">
+            We couldn't generate quiz questions for this topic. Please try again later.
+          </p>
+          <Button onClick={onComplete}>Return to Learning</Button>
         </div>
       </div>
     );
@@ -118,6 +145,9 @@ const QuizComponent = ({ topic, nodeId, onComplete }: QuizComponentProps) => {
           <p className="text-muted-foreground">
             You scored {finalScore} out of {totalQuestions} questions
           </p>
+          <div className="my-4 p-3 glass-card purple-glow inline-block">
+            <span className="text-lg font-bold">+{xpEarned} XP</span> earned!
+          </div>
         </div>
         
         <div className="flex flex-col space-y-4">
@@ -136,6 +166,16 @@ const QuizComponent = ({ topic, nodeId, onComplete }: QuizComponentProps) => {
           >
             Continue Learning
           </Button>
+        </div>
+      </div>
+    );
+  }
+  
+  if (!currentQuestion) {
+    return (
+      <div className="glass-card p-6 rounded-lg h-full flex items-center justify-center">
+        <div className="text-center">
+          <p>No questions available.</p>
         </div>
       </div>
     );

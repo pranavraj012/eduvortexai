@@ -2,6 +2,7 @@
 import { ReactNode, createContext, useContext } from 'react';
 import Sidebar from './Sidebar';
 import Navbar from './Navbar';
+import MockAIService from '@/services/MockAIService';
 
 // Create a context for API keys and configuration
 export const ConfigContext = createContext<{
@@ -22,6 +23,9 @@ const MainLayout = ({ children }: MainLayoutProps) => {
   const configValue = {
     googleApiKey: 'AIzaSyDwN23lw8-Ba9SoDkONNtpt9dGYVyzfhog'
   };
+
+  // Initialize the API key for MockAIService
+  MockAIService.setGoogleApiKey(configValue.googleApiKey);
 
   return (
     <ConfigContext.Provider value={configValue}>
