@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -26,7 +25,7 @@ const Learn = () => {
   } = useLearning();
   
   const [searchTopic, setSearchTopic] = useState('');
-  const [timeframe, setTimeframe] = useState('');
+  const [timeframe, setTimeframe] = useState('any');
   const [isGenerating, setIsGenerating] = useState(false);
   const [activeNode, setActiveNode] = useState<RoadmapNode | null>(null);
   const [activeTab, setActiveTab] = useState('roadmap');
@@ -41,7 +40,7 @@ const Learn = () => {
     try {
       const newRoadmap = await MockAIService.generateRoadmap({
         topic: searchTopic,
-        timeframe: timeframe || undefined
+        timeframe: timeframe === 'any' ? undefined : timeframe
       });
       
       addRoadmap(newRoadmap);
@@ -77,7 +76,6 @@ const Learn = () => {
       completeNode(activeRoadmap.id, activeNode.id);
       setShowQuiz(false);
       
-      // Update active node reference to reflect completion
       const updatedNode = activeRoadmap.nodes.find(n => n.id === activeNode.id);
       if (updatedNode) {
         setActiveNode(updatedNode);
@@ -107,7 +105,6 @@ const Learn = () => {
   const handleContentUpdate = (roadmapId: string, nodeId: string, content: string) => {
     updateNodeContent(roadmapId, nodeId, content);
     
-    // Update the active node with new content if it's the one being updated
     if (activeNode && activeNode.id === nodeId) {
       setActiveNode({
         ...activeNode,
@@ -200,9 +197,7 @@ const Learn = () => {
       </div>
       
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[calc(100vh-220px)]">
-        {/* Sidebar */}
         <div className="lg:col-span-1 space-y-6">
-          {/* Search and Generate */}
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-lg">Generate Learning Path</CardTitle>
@@ -243,7 +238,7 @@ const Learn = () => {
                     <SelectValue placeholder="Any timeframe" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Any timeframe</SelectItem>
+                    <SelectItem value="any">Any timeframe</SelectItem>
                     <SelectItem value="1 week">1 Week</SelectItem>
                     <SelectItem value="1 month">1 Month</SelectItem>
                     <SelectItem value="3 months">3 Months</SelectItem>
@@ -255,7 +250,6 @@ const Learn = () => {
             </CardContent>
           </Card>
           
-          {/* Recent Roadmaps */}
           {recentRoadmaps.length > 0 && (
             <Card>
               <CardHeader className="pb-2">
@@ -288,7 +282,6 @@ const Learn = () => {
             </Card>
           )}
           
-          {/* Node Details */}
           {activeNode && (
             <Card>
               <CardHeader className="pb-2">
@@ -355,7 +348,6 @@ const Learn = () => {
             </Card>
           )}
           
-          {/* AI Chat on mobile */}
           <div className="block lg:hidden">
             <h2 className="text-lg font-medium mb-2">AI Assistant</h2>
             <div className="h-[400px]">
@@ -364,7 +356,6 @@ const Learn = () => {
           </div>
         </div>
         
-        {/* Main Content */}
         <div className="lg:col-span-2">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full">
             <TabsList className="mb-4">
