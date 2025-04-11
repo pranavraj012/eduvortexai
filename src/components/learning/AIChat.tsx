@@ -1,9 +1,9 @@
-
 import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Send, Bot, User, Loader2 } from 'lucide-react';
 import MockAIService from '@/services/MockAIService';
+import { useConfig } from '@/components/layout/MainLayout';
 
 interface ChatMessage {
   id: string;
@@ -13,6 +13,7 @@ interface ChatMessage {
 }
 
 const AIChat = () => {
+  const { googleApiKey } = useConfig();
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: '1',
@@ -25,6 +26,12 @@ const AIChat = () => {
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
+  useEffect(() => {
+    if (googleApiKey) {
+      MockAIService.setGoogleApiKey(googleApiKey);
+    }
+  }, [googleApiKey]);
+  
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
@@ -36,7 +43,6 @@ const AIChat = () => {
   const handleSendMessage = async () => {
     if (!inputValue.trim()) return;
     
-    // Add user message
     const userMessage: ChatMessage = {
       id: Date.now().toString(),
       role: 'user',
@@ -49,10 +55,8 @@ const AIChat = () => {
     setIsLoading(true);
     
     try {
-      // Get AI response
       const response = await MockAIService.chatWithAI(userMessage.content);
       
-      // Add AI message
       const aiMessage: ChatMessage = {
         id: Date.now().toString(),
         role: 'assistant',
@@ -64,7 +68,6 @@ const AIChat = () => {
     } catch (error) {
       console.error('Error getting AI response:', error);
       
-      // Add error message
       const errorMessage: ChatMessage = {
         id: Date.now().toString(),
         role: 'assistant',

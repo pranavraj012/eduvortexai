@@ -19,8 +19,22 @@ class MockAIService {
     return new Promise(resolve => setTimeout(resolve, ms));
   }
 
+  private static googleApiKey: string | null = null;
+
+  static setGoogleApiKey(apiKey: string) {
+    this.googleApiKey = apiKey;
+    console.log('Google API key configured successfully');
+  }
+
+  // This method would use the Google API when fully implemented
+  // Currently still using mock data
   static async generateRoadmap(topic: string): Promise<Roadmap> {
     await this.delay(1500); // Simulate API call delay
+    
+    // In a full implementation, this would use the Google API
+    // if (this.googleApiKey) {
+    //   // Make actual API call to Google's Gemini API
+    // }
     
     const nodes = this.generateNodesForTopic(topic);
     
