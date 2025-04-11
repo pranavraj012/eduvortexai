@@ -9,7 +9,158 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string | null
+          id: string
+          updated_at: string | null
+          username: string | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string | null
+          id: string
+          updated_at?: string | null
+          username?: string | null
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string | null
+          id?: string
+          updated_at?: string | null
+          username?: string | null
+        }
+        Relationships: []
+      }
+      roadmap_nodes: {
+        Row: {
+          completed: boolean | null
+          connections: string[] | null
+          content: string | null
+          created_at: string | null
+          description: string | null
+          id: string
+          position: Json
+          roadmap_id: string
+          title: string
+          updated_at: string | null
+          xp: number | null
+        }
+        Insert: {
+          completed?: boolean | null
+          connections?: string[] | null
+          content?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          position: Json
+          roadmap_id: string
+          title: string
+          updated_at?: string | null
+          xp?: number | null
+        }
+        Update: {
+          completed?: boolean | null
+          connections?: string[] | null
+          content?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          position?: Json
+          roadmap_id?: string
+          title?: string
+          updated_at?: string | null
+          xp?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "roadmap_nodes_roadmap_id_fkey"
+            columns: ["roadmap_id"]
+            isOneToOne: false
+            referencedRelation: "roadmaps"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      roadmaps: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          title: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          title: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          title?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_achievements: {
+        Row: {
+          achievement_id: string
+          id: string
+          unlocked_at: string | null
+          user_id: string
+        }
+        Insert: {
+          achievement_id: string
+          id?: string
+          unlocked_at?: string | null
+          user_id: string
+        }
+        Update: {
+          achievement_id?: string
+          id?: string
+          unlocked_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_stats: {
+        Row: {
+          average_score: number | null
+          nodes_completed: number | null
+          quizzes_taken: number | null
+          roadmaps_completed: number | null
+          streak: number | null
+          total_xp: number | null
+          user_id: string
+        }
+        Insert: {
+          average_score?: number | null
+          nodes_completed?: number | null
+          quizzes_taken?: number | null
+          roadmaps_completed?: number | null
+          streak?: number | null
+          total_xp?: number | null
+          user_id: string
+        }
+        Update: {
+          average_score?: number | null
+          nodes_completed?: number | null
+          quizzes_taken?: number | null
+          roadmaps_completed?: number | null
+          streak?: number | null
+          total_xp?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

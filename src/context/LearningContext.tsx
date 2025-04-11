@@ -1,5 +1,8 @@
 
-import React, { createContext, useState, useContext, ReactNode } from 'react';
+import React, { createContext, useState, useContext, ReactNode, useEffect } from 'react';
+import { useAuth } from './AuthContext';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from '@/components/ui/use-toast';
 
 export interface Roadmap {
   id: string;
@@ -43,11 +46,12 @@ interface LearningContextType {
   recentRoadmaps: Roadmap[];
   achievements: UserAchievement[];
   stats: UserStats;
+  isLoading: boolean;
   setActiveRoadmap: (roadmap: Roadmap | null) => void;
-  completeNode: (roadmapId: string, nodeId: string) => void;
-  addRoadmap: (roadmap: Roadmap) => void;
-  earnXp: (amount: number) => void;
-  updateNodeContent: (roadmapId: string, nodeId: string, content: string) => void;
+  completeNode: (roadmapId: string, nodeId: string) => Promise<void>;
+  addRoadmap: (roadmap: Roadmap) => Promise<void>;
+  earnXp: (amount: number) => Promise<void>;
+  updateNodeContent: (roadmapId: string, nodeId: string, content: string) => Promise<void>;
 }
 
 const defaultStats: UserStats = {
@@ -62,6 +66,7 @@ const defaultStats: UserStats = {
 const LearningContext = createContext<LearningContextType | undefined>(undefined);
 
 export const LearningProvider = ({ children }: { children: ReactNode }) => {
+  const { user } = useAuth();
   const [activeRoadmap, setActiveRoadmap] = useState<Roadmap | null>(null);
   const [userRoadmaps, setUserRoadmaps] = useState<Roadmap[]>([]);
   const [achievements, setAchievements] = useState<UserAchievement[]>([
@@ -70,7 +75,7 @@ export const LearningProvider = ({ children }: { children: ReactNode }) => {
       title: "First Steps",
       description: "Started your learning journey",
       icon: "🚀",
-      unlockedAt: new Date().toISOString(),
+      unlockedAt: null,
     },
     {
       id: "2",
@@ -102,70 +107,369 @@ export const LearningProvider = ({ children }: { children: ReactNode }) => {
     },
   ]);
   const [stats, setStats] = useState<UserStats>(defaultStats);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const completeNode = (roadmapId: string, nodeId: string) => {
-    setUserRoadmaps(prevRoadmaps => 
-      prevRoadmaps.map(roadmap => 
-        roadmap.id === roadmapId
-          ? {
-              ...roadmap,
-              nodes: roadmap.nodes.map(node => 
-                node.id === nodeId
-                  ? { ...node, completed: true }
-                  : node
-              )
-            }
-          : roadmap
-      )
-    );
+  // Load user data when authenticated
+  useEffect(() => {
+    if (user) {
+      loadUserData();
+      unlockAchievement("1"); // First Steps achievement
+    } else {
+      setUserRoadmaps([]);
+      setStats(defaultStats);
+      setIsLoading(false);
+    }
+  }, [user]);
 
-    setStats(prev => ({
-      ...prev,
-      nodesCompleted: prev.nodesCompleted + 1,
-    }));
+  const loadUserData = async () => {
+    setIsLoading(true);
+    try {
+      // Load user roadmaps
+      const { data: roadmapsData, error: roadmapsError } = await supabase
+        .from('roadmaps')
+        .select('*')
+        .eq('user_id', user?.id);
 
-    // Check if this unlocks any achievements
-    if (stats.nodesCompleted === 0) {
-      unlockAchievement("2"); // Knowledge Seeker
+      if (roadmapsError) throw roadmapsError;
+
+      // For each roadmap, load its nodes
+      const roadmapsWithNodes = await Promise.all(roadmapsData.map(async (roadmap) => {
+        const { data: nodesData, error: nodesError } = await supabase
+          .from('roadmap_nodes')
+          .select('*')
+          .eq('roadmap_id', roadmap.id);
+
+        if (nodesError) throw nodesError;
+
+        return {
+          ...roadmap,
+          nodes: nodesData.map(node => ({
+            ...node,
+            connections: node.connections || []
+          }))
+        };
+      }));
+
+      setUserRoadmaps(roadmapsWithNodes);
+
+      // Load user stats
+      const { data: statsData, error: statsError } = await supabase
+        .from('user_stats')
+        .select('*')
+        .eq('user_id', user?.id)
+        .single();
+
+      if (statsError && statsError.code !== 'PGRST116') throw statsError;
+
+      if (statsData) {
+        setStats({
+          totalXp: statsData.total_xp || 0,
+          streak: statsData.streak || 0,
+          roadmapsCompleted: statsData.roadmaps_completed || 0,
+          nodesCompleted: statsData.nodes_completed || 0,
+          quizzesTaken: statsData.quizzes_taken || 0,
+          averageScore: statsData.average_score || 0,
+        });
+      }
+
+      // Load user achievements
+      const { data: achievementsData, error: achievementsError } = await supabase
+        .from('user_achievements')
+        .select('*')
+        .eq('user_id', user?.id);
+
+      if (achievementsError) throw achievementsError;
+
+      // Update achievement unlocked status
+      const updatedAchievements = achievements.map(achievement => {
+        const found = achievementsData.find(a => a.achievement_id === achievement.id);
+        return {
+          ...achievement,
+          unlockedAt: found ? found.unlocked_at : null
+        };
+      });
+
+      setAchievements(updatedAchievements);
+
+    } catch (error) {
+      console.error('Error loading user data:', error);
+      toast({
+        title: 'Error loading data',
+        description: 'Failed to load your learning data.',
+        variant: 'destructive'
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const addRoadmap = (roadmap: Roadmap) => {
-    setUserRoadmaps(prev => [...prev, roadmap]);
+  const completeNode = async (roadmapId: string, nodeId: string) => {
+    if (!user) return;
+
+    try {
+      // Update node completion status
+      const { error: updateNodeError } = await supabase
+        .from('roadmap_nodes')
+        .update({ completed: true })
+        .eq('id', nodeId);
+
+      if (updateNodeError) throw updateNodeError;
+
+      // Update the user roadmaps state
+      setUserRoadmaps(prevRoadmaps => 
+        prevRoadmaps.map(roadmap => 
+          roadmap.id === roadmapId
+            ? {
+                ...roadmap,
+                nodes: roadmap.nodes.map(node => 
+                  node.id === nodeId
+                    ? { ...node, completed: true }
+                    : node
+                )
+              }
+            : roadmap
+        )
+      );
+
+      // Update user stats
+      const { data: statsData, error: statsError } = await supabase
+        .from('user_stats')
+        .update({
+          nodes_completed: stats.nodesCompleted + 1,
+        })
+        .eq('user_id', user.id)
+        .select();
+
+      if (statsError) throw statsError;
+
+      if (statsData && statsData[0]) {
+        setStats(prev => ({
+          ...prev,
+          nodesCompleted: prev.nodesCompleted + 1,
+        }));
+      }
+
+      // Check if this unlocks any achievements
+      if (stats.nodesCompleted === 0) {
+        unlockAchievement("2"); // Knowledge Seeker
+      }
+
+      // Check if the roadmap is completed
+      const updatedRoadmap = userRoadmaps.find(r => r.id === roadmapId);
+      if (updatedRoadmap) {
+        const allNodesCompleted = updatedRoadmap.nodes.every(node => 
+          node.id === nodeId ? true : node.completed
+        );
+
+        if (allNodesCompleted) {
+          // Update roadmaps completed count
+          const { error: updateStatsError } = await supabase
+            .from('user_stats')
+            .update({
+              roadmaps_completed: stats.roadmapsCompleted + 1,
+            })
+            .eq('user_id', user.id);
+
+          if (updateStatsError) throw updateStatsError;
+
+          setStats(prev => ({
+            ...prev,
+            roadmapsCompleted: prev.roadmapsCompleted + 1,
+          }));
+
+          // Unlock achievement if this is the first roadmap completed
+          if (stats.roadmapsCompleted === 0) {
+            unlockAchievement("3"); // Path Finder
+          }
+        }
+      }
+
+    } catch (error) {
+      console.error('Error completing node:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to update node completion status.',
+        variant: 'destructive'
+      });
+    }
   };
 
-  const earnXp = (amount: number) => {
-    setStats(prev => ({
-      ...prev,
-      totalXp: prev.totalXp + amount,
-    }));
+  const addRoadmap = async (roadmap: Roadmap) => {
+    if (!user) return;
+
+    try {
+      // Insert the roadmap
+      const { data: newRoadmap, error: roadmapError } = await supabase
+        .from('roadmaps')
+        .insert({
+          title: roadmap.title,
+          description: roadmap.description,
+          user_id: user.id,
+        })
+        .select()
+        .single();
+
+      if (roadmapError) throw roadmapError;
+
+      // Insert all the nodes
+      const nodesWithRoadmapId = roadmap.nodes.map(node => ({
+        roadmap_id: newRoadmap.id,
+        title: node.title,
+        description: node.description,
+        completed: node.completed,
+        xp: node.xp,
+        position: node.position,
+        connections: node.connections,
+        content: null
+      }));
+
+      const { data: newNodes, error: nodesError } = await supabase
+        .from('roadmap_nodes')
+        .insert(nodesWithRoadmapId)
+        .select();
+
+      if (nodesError) throw nodesError;
+
+      // Add the new roadmap to the state
+      const completeRoadmap = {
+        ...newRoadmap,
+        nodes: newNodes.map(node => ({
+          ...node,
+          connections: node.connections || [],
+        })),
+        createdAt: newRoadmap.created_at
+      };
+
+      setUserRoadmaps(prev => [...prev, completeRoadmap]);
+      
+      // Set as active roadmap
+      setActiveRoadmap(completeRoadmap);
+
+      toast({
+        title: 'Roadmap Created',
+        description: `Your roadmap "${roadmap.title}" has been created successfully.`
+      });
+
+    } catch (error) {
+      console.error('Error adding roadmap:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to create new roadmap.',
+        variant: 'destructive'
+      });
+    }
   };
 
-  const updateNodeContent = (roadmapId: string, nodeId: string, content: string) => {
-    setUserRoadmaps(prevRoadmaps => 
-      prevRoadmaps.map(roadmap => 
-        roadmap.id === roadmapId
-          ? {
-              ...roadmap,
-              nodes: roadmap.nodes.map(node => 
-                node.id === nodeId
-                  ? { ...node, content }
-                  : node
-              )
-            }
-          : roadmap
-      )
-    );
+  const earnXp = async (amount: number) => {
+    if (!user) return;
+
+    try {
+      const { error } = await supabase
+        .from('user_stats')
+        .update({
+          total_xp: stats.totalXp + amount,
+        })
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+
+      setStats(prev => ({
+        ...prev,
+        totalXp: prev.totalXp + amount,
+      }));
+
+    } catch (error) {
+      console.error('Error earning XP:', error);
+    }
   };
 
-  const unlockAchievement = (achievementId: string) => {
-    setAchievements(prev => 
-      prev.map(achievement => 
-        achievement.id === achievementId
-          ? { ...achievement, unlockedAt: new Date().toISOString() }
-          : achievement
-      )
-    );
+  const updateNodeContent = async (roadmapId: string, nodeId: string, content: string) => {
+    if (!user) return;
+
+    try {
+      const { error } = await supabase
+        .from('roadmap_nodes')
+        .update({ content })
+        .eq('id', nodeId);
+
+      if (error) throw error;
+
+      // Update local state
+      setUserRoadmaps(prevRoadmaps => 
+        prevRoadmaps.map(roadmap => 
+          roadmap.id === roadmapId
+            ? {
+                ...roadmap,
+                nodes: roadmap.nodes.map(node => 
+                  node.id === nodeId
+                    ? { ...node, content }
+                    : node
+                )
+              }
+            : roadmap
+        )
+      );
+
+      // Update active roadmap if it's the one being modified
+      if (activeRoadmap?.id === roadmapId) {
+        setActiveRoadmap({
+          ...activeRoadmap,
+          nodes: activeRoadmap.nodes.map(node => 
+            node.id === nodeId
+              ? { ...node, content }
+              : node
+          )
+        });
+      }
+
+    } catch (error) {
+      console.error('Error updating node content:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to save node content.',
+        variant: 'destructive'
+      });
+    }
+  };
+
+  const unlockAchievement = async (achievementId: string) => {
+    if (!user) return;
+
+    // Check if achievement is already unlocked
+    const achievement = achievements.find(a => a.id === achievementId);
+    if (achievement?.unlockedAt) return;
+
+    try {
+      const { error } = await supabase
+        .from('user_achievements')
+        .insert({
+          user_id: user.id,
+          achievement_id: achievementId,
+        });
+
+      if (error) throw error;
+
+      // Update local state
+      setAchievements(prev => 
+        prev.map(achievement => 
+          achievement.id === achievementId
+            ? { ...achievement, unlockedAt: new Date().toISOString() }
+            : achievement
+        )
+      );
+
+      // Show achievement unlock toast
+      const unlockedAchievement = achievements.find(a => a.id === achievementId);
+      if (unlockedAchievement) {
+        toast({
+          title: `Achievement Unlocked: ${unlockedAchievement.title}`,
+          description: unlockedAchievement.description,
+        });
+      }
+
+    } catch (error) {
+      console.error('Error unlocking achievement:', error);
+    }
   };
 
   // Get recent roadmaps (last 5 created)
@@ -181,6 +485,7 @@ export const LearningProvider = ({ children }: { children: ReactNode }) => {
         recentRoadmaps,
         achievements,
         stats,
+        isLoading,
         setActiveRoadmap,
         completeNode,
         addRoadmap,
