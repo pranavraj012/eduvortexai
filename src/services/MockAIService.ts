@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/components/ui/use-toast';
 
@@ -48,7 +47,7 @@ class MockAIService {
         toast({
           title: "Warning",
           description: "Generated roadmap has fewer nodes than expected. You might want to regenerate it.",
-          variant: "warning"
+          variant: "default"
         });
       }
       
