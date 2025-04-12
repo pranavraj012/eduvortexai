@@ -41,7 +41,10 @@ class GeminiService {
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error from edge function:', error);
+        throw error;
+      }
       return data;
     } catch (error) {
       console.error('Error calling Gemini API via edge function:', error);
@@ -61,7 +64,10 @@ class GeminiService {
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error from edge function (generateRoadmap):', error);
+        throw error;
+      }
       
       if (data.candidates && data.candidates.length > 0 && 
           data.candidates[0].content && 
@@ -73,11 +79,19 @@ class GeminiService {
         let jsonEnd = content.lastIndexOf('}') + 1;
         
         if (jsonStart === -1 || jsonEnd === 0) {
+          console.error('JSON data not found in response:', content);
           throw new Error("JSON data not found in response");
         }
         
         const jsonString = content.substring(jsonStart, jsonEnd);
-        const roadmap = JSON.parse(jsonString);
+        let roadmap;
+        
+        try {
+          roadmap = JSON.parse(jsonString);
+        } catch (parseError) {
+          console.error('Failed to parse JSON:', parseError, 'JSON string:', jsonString);
+          throw new Error("Failed to parse roadmap JSON: " + parseError.message);
+        }
         
         // Add current timestamp
         roadmap.createdAt = new Date().toISOString();
@@ -88,8 +102,14 @@ class GeminiService {
           content: node.content === undefined ? null : node.content
         }));
         
+        // Ensure we have at least 10 nodes for a comprehensive roadmap
+        if (roadmap.nodes.length < 10) {
+          console.warn(`Generated roadmap has only ${roadmap.nodes.length} nodes, which is less than expected.`);
+        }
+        
         return roadmap;
       } else {
+        console.error('Invalid response structure from Gemini API:', data);
         throw new Error("Invalid response structure from Gemini API");
       }
     } catch (error) {
@@ -108,7 +128,10 @@ class GeminiService {
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error from edge function (generateNodeContent):', error);
+        throw error;
+      }
       
       if (data.candidates && data.candidates.length > 0 && 
           data.candidates[0].content && 
@@ -119,6 +142,7 @@ class GeminiService {
         
         return { content };
       } else {
+        console.error('Invalid response structure from Gemini API:', data);
         throw new Error("Invalid response structure from Gemini API");
       }
     } catch (error) {
@@ -172,8 +196,13 @@ class GeminiService {
           throw new Error("JSON data not found in response");
         }
         
-        const jsonString = content.substring(jsonStart, jsonEnd);
-        return JSON.parse(jsonString);
+        try {
+          const jsonString = content.substring(jsonStart, jsonEnd);
+          return JSON.parse(jsonString);
+        } catch (parseError) {
+          console.error('Failed to parse quiz JSON:', parseError);
+          throw new Error("Failed to parse quiz JSON: " + parseError.message);
+        }
       } else {
         throw new Error("Invalid response structure from Gemini API");
       }

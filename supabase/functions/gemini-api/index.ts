@@ -47,7 +47,8 @@ serve(async (req) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     } else if (body.type === 'generateRoadmap') {
-      const url = `https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent?key=${GEMINI_API_KEY}`;
+      // Use gemini-2.0-flash model instead of the deprecated gemini-pro
+      const url = `https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
       
       const timeframePrompt = body.timeframe 
         ? `Design this roadmap to be completable within ${body.timeframe}.` 
@@ -75,7 +76,7 @@ serve(async (req) => {
           ]
         }
         
-        Include 8-12 nodes for a comprehensive learning path covering beginner, intermediate, and advanced topics.
+        Include 10-15 nodes for a comprehensive learning path covering beginner, intermediate, and advanced topics.
         Position the nodes in a logical layout where x and y values are between 0 and 1000.
         Make connections reflect logical dependencies between topics.
         Use descriptive titles and informative descriptions for each node.
@@ -91,7 +92,13 @@ serve(async (req) => {
             parts: [{
               text: prompt
             }]
-          }]
+          }],
+          generationConfig: {
+            temperature: 0.4,
+            topK: 32,
+            topP: 0.95,
+            maxOutputTokens: 8192
+          }
         })
       });
       
@@ -104,7 +111,8 @@ serve(async (req) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     } else if (body.type === 'generateNodeContent') {
-      const url = `https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent?key=${GEMINI_API_KEY}`;
+      // Use gemini-2.0-flash model instead of the deprecated gemini-pro
+      const url = `https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
       
       const prompt = `
         Create detailed educational content about "${body.nodeTitle}" within the broader topic of "${body.topic}".
@@ -131,7 +139,13 @@ serve(async (req) => {
             parts: [{
               text: prompt
             }]
-          }]
+          }],
+          generationConfig: {
+            temperature: 0.4,
+            topK: 32,
+            topP: 0.95,
+            maxOutputTokens: 8192
+          }
         })
       });
       

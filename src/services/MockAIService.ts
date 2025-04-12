@@ -27,7 +27,14 @@ class MockAIService {
         this.geminiService = new GeminiService(this.geminiApiKey);
       }
       
-      return await this.geminiService.generateRoadmap(params);
+      const result = await this.geminiService.generateRoadmap(params);
+      
+      // Ensure we have a reasonable number of nodes (10-15)
+      if (result.nodes && result.nodes.length < 10) {
+        console.warn(`Generated roadmap has only ${result.nodes.length} nodes, which is less than expected.`);
+      }
+      
+      return result;
     } catch (error) {
       console.error('Error in generateRoadmap:', error);
       throw error;
