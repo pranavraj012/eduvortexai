@@ -1,73 +1,105 @@
-# Welcome to your Lovable project
+# EduVortex - AI-Powered Personalized Learning
 
-## Project info
+EduVortex is an innovative educational platform that leverages AI to create personalized learning experiences. The application generates customized learning roadmaps, interactive content, quizzes, and provides an AI-powered chat assistant to guide users through their educational journey.
 
-**URL**: https://lovable.dev/projects/6348d052-ccaa-4aa9-adac-c918ebb56bac
+## Features
 
-## How can I edit this code?
+- **AI-Generated Learning Roadmaps**: Automatically create comprehensive learning paths for any topic
+- **Interactive Content**: Generate detailed educational content for each node in the learning path
+- **Quizzes and Assessments**: Test your knowledge with AI-generated quizzes specific to each topic
+- **AI Assistant**: Chat with an AI tutor that can answer questions and provide guidance
+- **Progress Tracking**: Track your advancement through learning paths
 
-There are several ways of editing your application.
+## Tech Stack
 
-**Use Lovable**
+- **Frontend**: React with TypeScript, Vite, Tailwind CSS, shadcn-ui
+- **Backend**: Supabase for authentication, database, and edge functions
+- **AI**: Google's Gemini API for content generation and chat functionality
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/6348d052-ccaa-4aa9-adac-c918ebb56bac) and start prompting.
+## Getting Started
 
-Changes made via Lovable will be committed automatically to this repo.
+### Prerequisites
 
-**Use your preferred IDE**
+- Node.js and npm
+- Supabase account
+- Google Gemini API key
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+### Installation
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+1. Clone the repository
+   ```sh
+   git clone <YOUR_REPO_URL>
+   cd edu-vortex-learn-41
+   ```
 
-Follow these steps:
+2. Install dependencies
+   ```sh
+   npm install
+   ```
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+3. Environment Setup
+   - Create a `.env.local` file in the root directory
+   - Add the following environment variables:
+   ```
+   # Supabase credentials
+   VITE_SUPABASE_URL=<your db url>
+   VITE_SUPABASE_ANON_KEY= <your key>
+   # Gemini API key
+   VITE_GEMINI_API_KEY=your_gemini_api_key
+   ```
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+4. Start the development server
+   ```sh
+   npm run dev
+   ```
 
-# Step 3: Install the necessary dependencies.
-npm i
+## Supabase Edge Functions
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+For the edge functions to access environment variables, you need to set them in the Supabase dashboard:
+
+```bash
+supabase secrets set GEMINI_API_KEY=your_gemini_api_key
 ```
 
-**Edit a file directly in GitHub**
+## Architecture
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+EduVortex is built with a modern, serverless architecture:
 
-**Use GitHub Codespaces**
+1. **React Frontend**: Provides the user interface and experience
+2. **Supabase Backend**: Handles authentication, database operations, and serverless functions
+3. **Gemini API Integration**: Powers the AI features through Supabase edge functions
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+## Roadmap Generation Process
 
-## What technologies are used for this project?
+1. User enters a topic they want to learn
+2. The application sends a request to the Gemini API via Supabase edge functions
+3. The AI generates a structured roadmap with nodes representing subtopics
+4. The roadmap is displayed visually for the user to navigate
 
-This project is built with:
+## Content Generation
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+When a user selects a node in the roadmap:
+1. The application requests detailed content about that specific topic
+2. Gemini API generates comprehensive educational material with examples and exercises
+3. Content is rendered in a readable format with proper Markdown styling
 
-## How can I deploy this project?
+## Quiz Generation
 
-Simply open [Lovable](https://lovable.dev/projects/6348d052-ccaa-4aa9-adac-c918ebb56bac) and click on Share -> Publish.
+For knowledge testing:
+1. AI generates topic-specific multiple-choice questions
+2. Each question includes explanations for the correct answer
+3. User performance is tracked and can guide further learning
 
-## Can I connect a custom domain to my Lovable project?
+## Development
 
-Yes it is!
+This project was developed during a hackathon to demonstrate the potential of AI in personalized education.
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+## License
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+[Add your license information here]
+
+## Acknowledgments
+
+- Google Gemini API for powering the AI features
+- Supabase for providing the backend infrastructure
+- Lovable for the development platform

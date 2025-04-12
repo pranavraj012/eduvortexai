@@ -2,10 +2,19 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
-const SUPABASE_URL = "https://wykysgikszfhpblaygpr.supabase.co";
-const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind5a3lzZ2lrc3pmaHBibGF5Z3ByIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQzOTYyNzYsImV4cCI6MjA1OTk3MjI3Nn0._Y3acDjLwdCqj64ij0AJCdBbU6Exv8rctPIVmYQKclc";
+// In Vite, environment variables must be prefixed with VITE_
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+
+// Debug info - will appear in browser console
+console.log('Supabase URL configured:', supabaseUrl ? 'Yes' : 'No');
+console.log('Supabase Key configured:', supabaseAnonKey ? 'Yes' : 'No');
+
+if (!supabaseUrl || !supabaseAnonKey) {
+  console.error('Error: Missing Supabase credentials. Make sure VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are set in .env.local');
+}
 
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
 
-export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey);

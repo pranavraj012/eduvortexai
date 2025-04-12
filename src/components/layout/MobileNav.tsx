@@ -1,11 +1,3 @@
-
-import { Menu } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { 
-  Sheet, 
-  SheetContent, 
-  SheetTrigger 
-} from '@/components/ui/sheet';
 import { Link, useLocation } from 'react-router-dom';
 import { 
   Brain, 
@@ -13,19 +5,22 @@ import {
   Trophy, 
   TrendingUp, 
   User, 
+  Menu, 
   GraduationCap
 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
 
 const MobileNav = () => {
   const location = useLocation();
   
   const navItems = [
-    { name: 'Home', path: '/', icon: Home },
-    { name: 'Learn', path: '/learn', icon: Brain },
-    { name: 'Achievements', path: '/achievements', icon: Trophy },
-    { name: 'Progress', path: '/progress', icon: TrendingUp },
-    { name: 'Profile', path: '/profile', icon: User },
+    { name: 'Home', path: '/app', icon: Home },
+    { name: 'Learn', path: '/app/learn', icon: Brain },
+    { name: 'Achievements', path: '/app/achievements', icon: Trophy },
+    { name: 'Progress', path: '/app/progress', icon: TrendingUp },
+    { name: 'Profile', path: '/app/profile', icon: User },
   ];
 
   return (

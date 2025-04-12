@@ -1,4 +1,3 @@
-
 import { Link, useLocation } from 'react-router-dom';
 import { 
   Brain, 
@@ -6,9 +5,7 @@ import {
   Trophy, 
   TrendingUp, 
   User, 
-  LayoutDashboard,
-  GraduationCap,
-  MessageSquare
+  GraduationCap
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -16,15 +13,15 @@ const Sidebar = () => {
   const location = useLocation();
   
   const navItems = [
-    { name: 'Home', path: '/', icon: Home },
-    { name: 'Learn', path: '/learn', icon: Brain },
-    { name: 'Achievements', path: '/achievements', icon: Trophy },
-    { name: 'Progress', path: '/progress', icon: TrendingUp },
-    { name: 'Profile', path: '/profile', icon: User },
+    { name: 'Home', path: '/app', icon: Home },
+    { name: 'Learn', path: '/app/learn', icon: Brain },
+    { name: 'Achievements', path: '/app/achievements', icon: Trophy },
+    { name: 'Progress', path: '/app/progress', icon: TrendingUp },
+    { name: 'Profile', path: '/app/profile', icon: User },
   ];
 
   return (
-    <aside className="hidden md:flex md:w-60 lg:w-72 border-r border-border flex-col bg-sidebar p-4">
+    <aside className="fixed h-screen w-60 lg:w-72 border-r border-border flex-col bg-sidebar p-4 overflow-hidden">
       <div className="space-y-4 py-4">
         <div className="px-3 py-2">
           <h2 className="mb-2 px-4 text-lg font-semibold tracking-tight">
@@ -49,35 +46,6 @@ const Sidebar = () => {
                 )}
               </Link>
             ))}
-          </div>
-        </div>
-        
-        <div className="px-3 py-2">
-          <h2 className="mb-2 px-4 text-lg font-semibold tracking-tight">
-            <span className="text-gradient">Quick Access</span>
-          </h2>
-          <div className="space-y-1">
-            <a
-              href="#"
-              className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground transition-all"
-            >
-              <LayoutDashboard className="h-4 w-4" />
-              <span>Dashboard</span>
-            </a>
-            <a
-              href="#"
-              className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground transition-all"
-            >
-              <GraduationCap className="h-4 w-4" />
-              <span>Recent Learning Paths</span>
-            </a>
-            <a
-              href="#"
-              className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground transition-all"
-            >
-              <MessageSquare className="h-4 w-4" />
-              <span>AI Assistant</span>
-            </a>
           </div>
         </div>
       </div>

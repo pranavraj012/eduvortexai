@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/components/ui/use-toast';
 
@@ -13,7 +12,7 @@ interface AIResponse {
 }
 
 class MockAIService {
-  private static geminiApiKey: string = 'AIzaSyDSLvLlDoP-apMrXXDJksj7apmInfCnimg';
+  private static geminiApiKey: string = import.meta.env.VITE_GEMINI_API_KEY || '';
 
   static setGoogleApiKey(apiKey: string) {
     this.geminiApiKey = apiKey;

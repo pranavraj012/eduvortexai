@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const corsHeaders = {
@@ -13,7 +12,13 @@ serve(async (req) => {
   }
 
   try {
-    const GEMINI_API_KEY = "AIzaSyDSLvLlDoP-apMrXXDJksj7apmInfCnimg";
+    // Log environment status for debugging
+    console.log("Edge function invoked");
+    const hasEnvVar = !!Deno.env.get("GEMINI_API_KEY");
+    console.log("Has GEMINI_API_KEY environment variable:", hasEnvVar);
+    
+    // Use environment variable from Supabase Edge Functions configuration
+    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY") || "AIzaSyDSLvLlDoP-apMrXXDJksj7apmInfCnimg";
     if (!GEMINI_API_KEY) {
       throw new Error('GEMINI_API_KEY is not set');
     }

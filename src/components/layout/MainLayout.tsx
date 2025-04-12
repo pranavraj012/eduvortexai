@@ -1,9 +1,12 @@
-
-import { ReactNode, createContext, useContext } from 'react';
+import { createContext, useContext, useState } from 'react';
+import { Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Navbar from './Navbar';
+import MobileNav from './MobileNav';
 import MockAIService from '@/services/MockAIService';
-import { useAuth } from '@/context/AuthContext';
+import { Button } from '@/components/ui/button';
+import { PanelLeft } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 // Initialize the API key for MockAIService
 const GOOGLE_API_KEY = 'AIzaSyDwN23lw8-Ba9SoDkONNtpt9dGYVyzfhog';
@@ -25,22 +28,42 @@ export const useConfig = () => {
   return context;
 };
 
-interface MainLayoutProps {
-  children: ReactNode;
-}
+const MainLayout = () => {
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
-const MainLayout = ({ children }: MainLayoutProps) => {
-  const { user } = useAuth();
+  const toggleSidebar = () => {
+    setSidebarCollapsed(!sidebarCollapsed);
+  };
 
   return (
     <ConfigContext.Provider value={{ googleApiKey: GOOGLE_API_KEY }}>
-      <div className="min-h-screen flex flex-col">
-        <Navbar />
-        <div className="flex flex-1 overflow-hidden">
-          <Sidebar />
-          <main className="flex-1 overflow-auto p-4 md:p-6">
-            {children}
-          </main>
+      <div className="min-h-screen bg-background">
+        <div className="flex">
+          {/* Sidebar with collapse state */}
+          <div className={cn(
+            "transition-all duration-300 ease-in-out",
+            sidebarCollapsed ? "w-0 -ml-72 md:-ml-60" : "w-60 lg:w-72"
+          )}>
+            <Sidebar />
+          </div>
+          
+          <div className="flex-1">
+            <div className="p-4 border-b flex items-center">
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={toggleSidebar} 
+                className="mr-2"
+              >
+                <PanelLeft className="h-5 w-5" />
+              </Button>
+              <Navbar />
+            </div>
+            <MobileNav />
+            <div className="p-4">
+              <Outlet />
+            </div>
+          </div>
         </div>
       </div>
     </ConfigContext.Provider>

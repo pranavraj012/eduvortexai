@@ -1,4 +1,3 @@
-
 import { Button } from "@/components/ui/button";
 import { 
   Brain, 
@@ -10,11 +9,20 @@ import {
   Trophy
 } from "lucide-react";
 import { Link } from "react-router-dom";
+import { SplineHero } from "@/components/spline-scene-demo";
+import { useAuth } from "@/context/AuthContext";
 
 const Home = () => {
+  const { user } = useAuth();
+
   return (
     <div className="container mx-auto space-y-16 py-8">
-      {/* Hero Section */}
+      {/* Hero Section with 3D Spline */}
+      <section className="mb-16">
+        <SplineHero />
+      </section>
+      
+      {/* Rest of the home page content */}
       <section className="relative space-y-8">
         <div className="absolute -z-10 inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-edu-purple/20 via-transparent to-transparent"></div>
         
@@ -22,28 +30,30 @@ const Home = () => {
           <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold animate-fade-in">
             <span className="text-gradient">Learning Reimagined</span> with AI
           </h1>
-          <p className="text-xl md:text-2xl text-muted-foreground max-w-2xl mx-auto animate-fade-in" style={{animationDelay: "0.2s"}}>
-            Discover personalized learning paths powered by artificial intelligence
+          
+          <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
+            EduVortex generates personalized learning paths that adapt to your goals,
+            making education more engaging and effective.
           </p>
-        </div>
-        
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-4 animate-fade-in" style={{animationDelay: "0.4s"}}>
-          <Button asChild size="lg" className="purple-glow bg-gradient-to-r from-edu-purple to-edu-brightBlue hover:opacity-90">
-            <Link to="/learn">
-              Start Learning
-              <ChevronRight className="ml-2 h-4 w-4" />
-            </Link>
-          </Button>
-          <Button asChild variant="outline" size="lg">
-            <Link to="/learn">
-              Explore Paths
-            </Link>
-          </Button>
+          
+          <div className="flex justify-center gap-4 pt-4">
+            <Button asChild size="lg" className="bg-edu-purple hover:bg-edu-deepPurple">
+              <Link to="/auth">
+                Get Started <ChevronRight className="h-4 w-4 ml-1" />
+              </Link>
+            </Button>
+            
+            <Button asChild variant="outline" size="lg">
+              <Link to={user ? "/app/learn" : "/auth"}>
+                Explore Features
+              </Link>
+            </Button>
+          </div>
         </div>
       </section>
-      
+    
       {/* Features Section */}
-      <section className="py-10">
+      <section className="py-16">
         <h2 className="text-3xl font-bold text-center mb-12">
           <span className="text-gradient">Key Features</span>
         </h2>
@@ -124,7 +134,7 @@ const Home = () => {
           Start your personalized learning journey today with EduVortex's AI-powered platform.
         </p>
         <Button asChild size="lg" className="purple-glow bg-gradient-to-r from-edu-purple to-edu-brightBlue hover:opacity-90">
-          <Link to="/learn">
+          <Link to={user ? "/app/learn" : "/auth"}>
             Get Started Now
             <ChevronRight className="ml-2 h-4 w-4" />
           </Link>

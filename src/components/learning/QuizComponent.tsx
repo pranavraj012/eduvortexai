@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { CheckCircle, XCircle, RotateCcw } from 'lucide-react';
@@ -19,6 +18,18 @@ interface QuizComponentProps {
   topic: string;
   nodeId: string;
   onComplete: () => void;
+}
+
+// Add quizAttempted to the interface to match database schema
+export interface RoadmapNode {
+  id: string;
+  title: string;
+  description: string;
+  completed: boolean;
+  xp: number;
+  content: string | null;
+  connections: string[];
+  quizAttempted?: boolean;
 }
 
 const QuizComponent = ({ topic, nodeId, onComplete }: QuizComponentProps) => {
@@ -135,6 +146,15 @@ const QuizComponent = ({ topic, nodeId, onComplete }: QuizComponentProps) => {
   
   const updateUserStats = async (earnedXp: number, percentScore: number) => {
     try {
+      // Get the user ID
+      const { data } = await supabase.auth.getUser();
+      const userId = data?.user?.id;
+      
+      if (!userId) {
+        console.error("No user ID available");
+        return;
+      }
+      
       // Update quizzes taken count and XP
       const { error: statsError } = await supabase
         .from('user_stats')
@@ -145,36 +165,47 @@ const QuizComponent = ({ topic, nodeId, onComplete }: QuizComponentProps) => {
             ? percentScore 
             : Math.round((stats.averageScore * stats.quizzesTaken + percentScore) / (stats.quizzesTaken + 1))
         })
-        .eq('user_id', (await supabase.auth.getUser()).data.user?.id);
+        .eq('user_id', userId); // userId is now guaranteed to be a string
       
       if (statsError) throw statsError;
+      
+      // Mark this node as having attempted a quiz
+      // Fix the quiz_attempted property name to match the database schema
+      const { error: nodeError } = await supabase
+        .from('roadmap_nodes')
+        .update({ quizAttempted: true }) // Changed from quiz_attempted to quizAttempted to match your schema
+        .eq('id', nodeId);
+        
+      if (nodeError) throw nodeError;
       
       // Call the learning context method to update local state
       earnXp(earnedXp);
       
       // If perfect score, unlock the Quiz Master achievement
-      if (percentScore === 100) {
-        unlockAchievement("4"); // Quiz Master achievement
+      if (percentScore === 100 && userId) { // Added userId check
+        unlockAchievement("4", userId); // Added userId parameter
       }
     } catch (error) {
       console.error("Error updating user stats:", error);
     }
   };
   
-  const unlockAchievement = async (achievementId: string) => {
+  // Update the function to accept userId
+  const unlockAchievement = async (achievementId: string, userId: string) => {
     try {
       const { data: existingAchievement } = await supabase
         .from('user_achievements')
         .select('*')
         .eq('achievement_id', achievementId)
-        .eq('user_id', (await supabase.auth.getUser()).data.user?.id)
+        .eq('user_id', userId) // use the provided userId
         .single();
       
       if (!existingAchievement) {
+        // Fix the insert statement
         const { error } = await supabase
           .from('user_achievements')
           .insert({
-            user_id: (await supabase.auth.getUser()).data.user?.id,
+            user_id: userId, // use the provided userId
             achievement_id: achievementId,
           });
         

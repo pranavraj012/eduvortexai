@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { BarChart, LineChart, TrendingUp, Calendar, BookOpen, Award, PieChart } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -45,27 +44,34 @@ const Progress = () => {
       const today = new Date();
       const data = [];
       
-      // Generate the last 7 days of data
+      // Generate data for the last 7 days with actual XP values
       for (let i = 6; i >= 0; i--) {
         const date = new Date();
         date.setDate(today.getDate() - i);
         const dayName = days[date.getDay()];
         
-        // Simulate XP earned for each day, with higher values for recent days
-        // In a real app, this would come from the database
-        const xpValue = Math.max(0, Math.floor((stats.totalXp / 7) * (1 - (i * 0.1)) + Math.random() * 20));
-        
-        data.push({
-          day: dayName,
-          xp: xpValue
-        });
+        // Check if we're on today and have XP
+        if (i === 0 && stats.totalXp > 0) {
+          // For today, use the actual total XP value
+          data.push({
+            day: dayName,
+            xp: stats.totalXp
+          });
+        } else {
+          // For past days, distribute some XP if available
+          // This is a simplified model - in a real app, you'd have daily XP records
+          const pastXp = i === 0 ? stats.totalXp : Math.floor(stats.totalXp / (i + 2));
+          data.push({
+            day: dayName,
+            xp: Math.max(0, pastXp)
+          });
+        }
       }
       
       return data;
     };
     
     const generateTopicProgressData = () => {
-      // Extract topics from roadmaps and calculate completion
       if (userRoadmaps.length === 0) {
         return [];
       }
@@ -87,46 +93,43 @@ const Progress = () => {
       if (!user) return [];
       
       try {
-        // For now, we'll generate synthetic activities based on stats
-        // In a real app, you'd fetch this from a dedicated activities table
         const activities: Activity[] = [];
         
-        // Add one activity for XP
-        activities.push({
-          type: 'xp',
-          text: `Earned ${Math.floor(stats.totalXp * 0.1)} XP`,
-          timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), // 2 hours ago
-          icon: <Award className="h-5 w-5 text-edu-purple" />
-        });
+        // Only add activities based on real data
         
-        // Add activity for completed node if any
-        if (stats.nodesCompleted > 0) {
-          const randomRoadmap = userRoadmaps[Math.floor(Math.random() * userRoadmaps.length)];
-          if (randomRoadmap) {
-            const completedNodes = randomRoadmap.nodes.filter(n => n.completed);
-            if (completedNodes.length > 0) {
-              const randomNode = completedNodes[Math.floor(Math.random() * completedNodes.length)];
+        // Add activity for completed nodes (if any)
+        const completedNodesCount = userRoadmaps.reduce(
+          (count, roadmap) => count + roadmap.nodes.filter(n => n.completed).length, 
+          0
+        );
+        
+        if (completedNodesCount > 0) {
+          // Find a completed node to reference
+          for (const roadmap of userRoadmaps) {
+            const completedNode = roadmap.nodes.find(n => n.completed);
+            if (completedNode) {
               activities.push({
                 type: 'node',
-                text: `Completed learning node: ${randomNode.title}`,
-                timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(), // Yesterday
+                text: `Completed learning node: ${completedNode.title}`,
+                timestamp: new Date().toISOString(),
                 icon: <BookOpen className="h-5 w-5 text-edu-purple" />
               });
+              break;
             }
           }
         }
         
-        // Add quiz activity
+        // Add activity for quizzes if taken
         if (stats.quizzesTaken > 0) {
           activities.push({
             type: 'quiz',
             text: `Achieved ${stats.averageScore}% on a quiz`,
-            timestamp: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(), // 2 days ago
+            timestamp: new Date().toISOString(),
             icon: <PieChart className="h-5 w-5 text-edu-purple" />
           });
         }
         
-        // Add roadmap activity
+        // Add activity for roadmap creation if available
         if (userRoadmaps.length > 0) {
           const latestRoadmap = userRoadmaps.sort((a, b) => 
             new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
@@ -134,14 +137,14 @@ const Progress = () => {
           
           activities.push({
             type: 'roadmap',
-            text: `Started new learning path: ${latestRoadmap.title.replace('Learning Path:', '').trim()}`,
-            timestamp: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(), // 3 days ago
+            text: `Started learning path: ${latestRoadmap.title.replace('Learning Path:', '').trim()}`,
+            timestamp: latestRoadmap.createdAt,
             icon: <TrendingUp className="h-5 w-5 text-edu-purple" />
           });
         }
         
         return activities.sort((a, b) => 
-          new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
         );
       } catch (error) {
         console.error('Error generating activities:', error);
@@ -171,6 +174,7 @@ const Progress = () => {
       try {
         setLoading(true);
         
+        // Generate daily XP data based on user's actual total XP
         const dailyData = generateDailyProgressData();
         setDailyProgressData(dailyData);
         
@@ -241,6 +245,13 @@ const Progress = () => {
     );
   }
   
+  // Determine if we have actual data to show
+  const hasXpData = stats.totalXp > 0;
+  const hasCompletedNodes = completedNodes > 0;
+  const hasQuizData = stats.quizzesTaken > 0;
+  const hasStreak = stats.streak > 0;
+  const hasRoadmaps = userRoadmaps.length > 0;
+  
   return (
     <div className="container mx-auto py-6">
       <div className="mb-8">
@@ -263,7 +274,9 @@ const Progress = () => {
           <CardContent>
             <div className="text-2xl font-bold">{stats.totalXp}</div>
             <p className="text-xs text-muted-foreground">
-              {dailyProgressData.reduce((sum, day) => sum + day.xp, 0)} XP this week
+              {hasXpData 
+                ? `${dailyProgressData.reduce((sum, day) => sum + day.xp, 0)} XP this week` 
+                : "No XP earned yet"}
             </p>
           </CardContent>
         </Card>
@@ -276,7 +289,11 @@ const Progress = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.streak} days</div>
-            <p className="text-xs text-muted-foreground">Keep learning to increase your streak</p>
+            <p className="text-xs text-muted-foreground">
+              {hasStreak 
+                ? "Keep up the good work!" 
+                : "Start learning daily to build a streak"}
+            </p>
           </CardContent>
         </Card>
         
@@ -289,7 +306,9 @@ const Progress = () => {
           <CardContent>
             <div className="text-2xl font-bold">{stats.nodesCompleted}</div>
             <p className="text-xs text-muted-foreground">
-              {completedNodes > 0 ? `${Math.round((completedNodes / (completedNodes + inProgressNodes)) * 100)}% completion rate` : 'No nodes completed yet'}
+              {hasCompletedNodes 
+                ? `${Math.round((completedNodes / (completedNodes + inProgressNodes)) * 100)}% completion rate` 
+                : 'No nodes completed yet'}
             </p>
           </CardContent>
         </Card>
@@ -302,7 +321,11 @@ const Progress = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.quizzesTaken}</div>
-            <p className="text-xs text-muted-foreground">Avg. Score: {stats.averageScore}%</p>
+            <p className="text-xs text-muted-foreground">
+              {hasQuizData 
+                ? `Avg. Score: ${stats.averageScore}%` 
+                : 'No quizzes taken yet'}
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -320,25 +343,35 @@ const Progress = () => {
           </CardHeader>
           <CardContent>
             <div className="h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <RechartsLineChart data={dailyProgressData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#444" />
-                  <XAxis dataKey="day" stroke="#888" />
-                  <YAxis stroke="#888" />
-                  <Tooltip 
-                    contentStyle={{ backgroundColor: '#1A1F2C', border: '1px solid #444' }}
-                    itemStyle={{ color: '#fff' }}
-                  />
-                  <Legend />
-                  <Line 
-                    type="monotone" 
-                    dataKey="xp" 
-                    stroke="#9b87f5" 
-                    activeDot={{ r: 8 }} 
-                    name="XP Earned"
-                  />
-                </RechartsLineChart>
-              </ResponsiveContainer>
+              {hasXpData ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <RechartsLineChart data={dailyProgressData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#444" />
+                    <XAxis dataKey="day" stroke="#888" />
+                    <YAxis stroke="#888" domain={[0, 'dataMax + 10']} /> {/* Ensure Y axis shows all data */}
+                    <Tooltip 
+                      contentStyle={{ backgroundColor: '#1A1F2C', border: '1px solid #444' }}
+                      itemStyle={{ color: '#fff' }}
+                    />
+                    <Legend />
+                    <Line 
+                      type="monotone" 
+                      dataKey="xp" 
+                      stroke="#9b87f5" 
+                      activeDot={{ r: 8 }} 
+                      strokeWidth={2}
+                      name="XP Earned"
+                    />
+                  </RechartsLineChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-full flex-col">
+                  <Award className="h-10 w-10 mb-2 text-muted-foreground opacity-50" />
+                  <p className="text-muted-foreground text-center">
+                    Complete learning activities to earn XP<br />and see your progress here
+                  </p>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -354,7 +387,7 @@ const Progress = () => {
           </CardHeader>
           <CardContent>
             <div className="h-[300px]">
-              {topicProgressData.length > 0 ? (
+              {hasRoadmaps ? (
                 <ResponsiveContainer width="100%" height="100%">
                   <RechartsBarChart data={topicProgressData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#444" />
@@ -370,8 +403,11 @@ const Progress = () => {
                   </RechartsBarChart>
                 </ResponsiveContainer>
               ) : (
-                <div className="flex items-center justify-center h-full">
-                  <p className="text-muted-foreground">No roadmaps created yet</p>
+                <div className="flex items-center justify-center h-full flex-col">
+                  <TrendingUp className="h-10 w-10 mb-2 text-muted-foreground opacity-50" />
+                  <p className="text-muted-foreground text-center">
+                    Create learning roadmaps to see<br />your topic progress here
+                  </p>
                 </div>
               )}
             </div>
@@ -405,7 +441,7 @@ const Progress = () => {
                       dataKey="value"
                       label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
                     >
-                      {pieData.map((entry, index) => (
+                      {pieData.map((_entry, index) => (  // Changed to _entry to indicate it's intentionally unused
                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                       ))}
                     </Pie>
@@ -416,8 +452,11 @@ const Progress = () => {
                   </RechartsPieChart>
                 </ResponsiveContainer>
               ) : (
-                <div className="flex items-center justify-center h-full">
-                  <p className="text-muted-foreground">No nodes available yet</p>
+                <div className="flex items-center justify-center h-full flex-col">
+                  <BookOpen className="h-10 w-10 mb-2 text-muted-foreground opacity-50" />
+                  <p className="text-muted-foreground text-center">
+                    Start a learning path to see<br />your progress here
+                  </p>
                 </div>
               )}
             </div>
@@ -448,8 +487,8 @@ const Progress = () => {
                 ))}
               </div>
             ) : (
-              <div className="text-center py-8">
-                <TrendingUp className="h-10 w-10 mx-auto mb-4 text-muted-foreground" />
+              <div className="text-center py-8 flex flex-col items-center">
+                <TrendingUp className="h-10 w-10 mb-4 text-muted-foreground opacity-50" />
                 <h3 className="font-medium mb-1">No Recent Activities</h3>
                 <p className="text-muted-foreground">
                   Complete some learning activities to see your progress here

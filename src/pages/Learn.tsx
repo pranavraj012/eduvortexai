@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -16,12 +16,13 @@ import { toast } from '@/components/ui/use-toast';
 const Learn = () => {
   const { 
     activeRoadmap, 
-    userRoadmaps, 
+    // Removed userRoadmaps as it's not used
     recentRoadmaps,
     setActiveRoadmap, 
     addRoadmap, 
     completeNode,
-    updateNodeContent
+    updateNodeContent,
+    earnXp
   } = useLearning();
   
   const [searchTopic, setSearchTopic] = useState('');
@@ -31,7 +32,17 @@ const Learn = () => {
   const [activeTab, setActiveTab] = useState('roadmap');
   const [showQuiz, setShowQuiz] = useState(false);
   const [showContent, setShowContent] = useState(false);
+  const [hasAttemptedQuiz, setHasAttemptedQuiz] = useState(false);
   
+  // Check if the active node has had a quiz attempt
+  useEffect(() => {
+    if (activeNode) {
+      setHasAttemptedQuiz(!!activeNode.quizAttempted);
+    } else {
+      setHasAttemptedQuiz(false);
+    }
+  }, [activeNode]);
+
   const handleGenerateRoadmap = async () => {
     if (!searchTopic.trim()) return;
     
@@ -73,13 +84,19 @@ const Learn = () => {
   
   const handleCompleteNode = () => {
     if (activeRoadmap && activeNode) {
+      // Add XP directly when completing the node
+      earnXp(activeNode.xp);
+      
+      // Complete the node in the learning context
       completeNode(activeRoadmap.id, activeNode.id);
       setShowQuiz(false);
       
-      const updatedNode = activeRoadmap.nodes.find(n => n.id === activeNode.id);
-      if (updatedNode) {
-        setActiveNode(updatedNode);
-      }
+      // Update the active node with the completed status
+      const updatedNode = {
+        ...activeNode,
+        completed: true
+      };
+      setActiveNode(updatedNode);
       
       toast({
         title: "Node Completed",
@@ -99,7 +116,17 @@ const Learn = () => {
   };
   
   const handleQuizComplete = () => {
-    handleCompleteNode();
+    // Mark that this node has had a quiz attempt
+    if (activeRoadmap && activeNode) {
+      setHasAttemptedQuiz(true);
+      
+      // Update node to track quiz attempt
+      const updatedNode = {
+        ...activeNode,
+        quizAttempted: true
+      };
+      setActiveNode(updatedNode);
+    }
   };
   
   const handleContentUpdate = (roadmapId: string, nodeId: string, content: string) => {
@@ -185,6 +212,75 @@ const Learn = () => {
     );
   };
   
+  const renderNodeDetailsCard = () => {
+    if (!activeNode) return null;
+    
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>{activeNode.title}</CardTitle>
+          <CardDescription>Learning Node</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm">{activeNode.description}</p>
+          
+          <div className="flex items-center justify-between">
+            <div className="text-sm">
+              <span className="text-muted-foreground">XP: </span>
+              <span className="font-medium text-edu-purple">{activeNode.xp}</span>
+            </div>
+            <div className="text-sm">
+              <span className="text-muted-foreground">Status: </span>
+              <span className={`font-medium ${activeNode.completed ? 'text-green-500' : 'text-yellow-500'}`}>
+                {activeNode.completed ? 'Completed' : 'In Progress'}
+              </span>
+            </div>
+          </div>
+          
+          <div className="flex flex-col space-y-2">
+            <Button 
+              variant="outline" 
+              className="w-full justify-center"
+              onClick={handleViewContent}
+            >
+              <BookOpen className="h-4 w-4 mr-2" />
+              View Content
+            </Button>
+            
+            {!activeNode.completed ? (
+              <>
+                <Button 
+                  variant="outline" 
+                  className="w-full justify-center"
+                  onClick={handleStartQuiz}
+                >
+                  <Award className="h-4 w-4 mr-2" />
+                  Take Quiz
+                </Button>
+                <Button 
+                  className="w-full justify-center bg-edu-purple hover:bg-edu-deepPurple"
+                  onClick={handleCompleteNode}
+                  disabled={!hasAttemptedQuiz}
+                  title={!hasAttemptedQuiz ? "Complete at least one quiz first" : ""}
+                >
+                  Mark Complete
+                </Button>
+              </>
+            ) : (
+              <Button 
+                variant="outline" 
+                className="w-full justify-center"
+                onClick={handleStartQuiz}
+              >
+                Retake Quiz
+              </Button>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  };
+
   return (
     <div className="container mx-auto py-6 h-full">
       <div className="mb-6">
@@ -282,71 +378,7 @@ const Learn = () => {
             </Card>
           )}
           
-          {activeNode && (
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-lg">{activeNode.title}</CardTitle>
-                <CardDescription className="flex items-center">
-                  <BookOpen className="h-4 w-4 mr-1" />
-                  Learning Node
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <p className="text-sm">{activeNode.description}</p>
-                
-                <div className="flex items-center justify-between">
-                  <div className="text-sm">
-                    <span className="text-muted-foreground">XP: </span>
-                    <span className="font-medium text-edu-purple">{activeNode.xp}</span>
-                  </div>
-                  <div className="text-sm">
-                    <span className="text-muted-foreground">Status: </span>
-                    <span className={`font-medium ${activeNode.completed ? 'text-green-500' : 'text-yellow-500'}`}>
-                      {activeNode.completed ? 'Completed' : 'In Progress'}
-                    </span>
-                  </div>
-                </div>
-                
-                <div className="flex flex-col space-y-2">
-                  <Button 
-                    variant="outline" 
-                    className="w-full justify-center"
-                    onClick={handleViewContent}
-                  >
-                    <BookOpen className="h-4 w-4 mr-2" />
-                    View Content
-                  </Button>
-                  
-                  {!activeNode.completed ? (
-                    <>
-                      <Button 
-                        variant="outline" 
-                        className="w-full justify-center"
-                        onClick={handleStartQuiz}
-                      >
-                        <Award className="h-4 w-4 mr-2" />
-                        Take Quiz
-                      </Button>
-                      <Button 
-                        className="w-full justify-center bg-edu-purple hover:bg-edu-deepPurple"
-                        onClick={handleCompleteNode}
-                      >
-                        Mark Complete
-                      </Button>
-                    </>
-                  ) : (
-                    <Button 
-                      variant="outline" 
-                      className="w-full justify-center"
-                      onClick={handleStartQuiz}
-                    >
-                      Retake Quiz
-                    </Button>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          )}
+          {activeNode && renderNodeDetailsCard()}
           
           <div className="block lg:hidden">
             <h2 className="text-lg font-medium mb-2">AI Assistant</h2>

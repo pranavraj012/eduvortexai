@@ -1,4 +1,3 @@
-
 import { Bell, User, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -12,14 +11,16 @@ import {
 } from '@/components/ui/dropdown-menu';
 import MobileNav from './MobileNav';
 import { useAuth } from '@/context/AuthContext';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 const Navbar = () => {
   const { user, signOut } = useAuth();
+  const navigate = useNavigate();
   
   const handleSignOut = async () => {
     try {
       await signOut();
+      navigate('/auth'); // Navigate to auth page after successful logout
     } catch (error) {
       console.error('Error signing out:', error);
     }

@@ -1,3 +1,4 @@
+@import './components/ui/loader.css';
 
 @tailwind base;
 @tailwind components;
