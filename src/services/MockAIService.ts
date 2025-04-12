@@ -12,7 +12,7 @@ interface AIResponse {
 }
 
 class MockAIService {
-  private static geminiApiKey: string = '';
+  private static geminiApiKey: string = 'AIzaSyDSLvLlDoP-apMrXXDJksj7apmInfCnimg';
   private static geminiService: GeminiService | null = null;
 
   static setGoogleApiKey(apiKey: string) {
@@ -24,9 +24,6 @@ class MockAIService {
   static async generateRoadmap(params: RoadmapGenerationParams) {
     try {
       if (!this.geminiService) {
-        if (!this.geminiApiKey) {
-          throw new Error('Google API key not configured');
-        }
         this.geminiService = new GeminiService(this.geminiApiKey);
       }
       
@@ -40,9 +37,6 @@ class MockAIService {
   static async generateNodeContent(topic: string, nodeTitle: string) {
     try {
       if (!this.geminiService) {
-        if (!this.geminiApiKey) {
-          throw new Error('Google API key not configured');
-        }
         this.geminiService = new GeminiService(this.geminiApiKey);
       }
       
@@ -56,9 +50,6 @@ class MockAIService {
   static async generateQuiz(topic: string, nodeId: string) {
     try {
       if (!this.geminiService) {
-        if (!this.geminiApiKey) {
-          throw new Error('Google API key not configured');
-        }
         this.geminiService = new GeminiService(this.geminiApiKey);
       }
       
@@ -72,9 +63,6 @@ class MockAIService {
   static async chatWithAI(message: string): Promise<AIResponse> {
     try {
       if (!this.geminiService) {
-        if (!this.geminiApiKey) {
-          throw new Error('Google API key not configured');
-        }
         this.geminiService = new GeminiService(this.geminiApiKey);
       }
       
@@ -108,5 +96,8 @@ class MockAIService {
     }
   }
 }
+
+// Initialize the API key
+MockAIService.setGoogleApiKey('AIzaSyDSLvLlDoP-apMrXXDJksj7apmInfCnimg');
 
 export default MockAIService;

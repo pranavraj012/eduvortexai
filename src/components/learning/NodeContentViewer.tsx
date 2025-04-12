@@ -31,7 +31,11 @@ const NodeContentViewer: React.FC<NodeContentViewerProps> = ({
         setIsLoading(true);
         try {
           const content = await MockAIService.generateNodeContent(topic, node.title);
-          onContentUpdate(roadmapId, node.id, content.content);
+          if (content && content.content) {
+            onContentUpdate(roadmapId, node.id, content.content);
+          } else {
+            throw new Error("Generated content is empty");
+          }
         } catch (error) {
           console.error("Error generating node content:", error);
           toast({
@@ -84,6 +88,31 @@ const NodeContentViewer: React.FC<NodeContentViewerProps> = ({
     }
   };
   
+  const handleRetryGeneration = async () => {
+    setIsLoading(true);
+    try {
+      const content = await MockAIService.generateNodeContent(topic, node.title);
+      if (content && content.content) {
+        onContentUpdate(roadmapId, node.id, content.content);
+        toast({
+          title: "Content regenerated",
+          description: "New learning content has been generated successfully.",
+        });
+      } else {
+        throw new Error("Generated content is empty");
+      }
+    } catch (error) {
+      console.error("Error regenerating node content:", error);
+      toast({
+        title: "Error generating content",
+        description: "Unable to regenerate learning content. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
   if (isLoading) {
     return (
       <div className="glass-card p-6 rounded-lg h-full flex items-center justify-center">
@@ -124,7 +153,10 @@ const NodeContentViewer: React.FC<NodeContentViewerProps> = ({
           <MarkdownContent content={node.content} />
         ) : (
           <div className="text-center py-8">
-            <p className="text-muted-foreground">No content available.</p>
+            <p className="text-muted-foreground mb-4">No content available.</p>
+            <Button onClick={handleRetryGeneration}>
+              Retry Content Generation
+            </Button>
           </div>
         )}
       </div>

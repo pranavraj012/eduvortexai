@@ -12,6 +12,7 @@ interface RoadmapNode {
   xp: number;
   position: { x: number; y: number };
   connections: string[];
+  content: string | null;
 }
 
 interface Roadmap {
@@ -22,6 +23,8 @@ interface Roadmap {
   createdAt: string;
 }
 
+import { supabase } from '@/integrations/supabase/client';
+
 class GeminiService {
   private apiKey: string;
 
@@ -29,35 +32,19 @@ class GeminiService {
     this.apiKey = apiKey;
   }
 
-  // Making this method public to fix the error
   public async callGeminiAPI(prompt: string) {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${this.apiKey}`;
-    
-    const requestBody = {
-      contents: [{
-        parts: [{
-          text: prompt
-        }]
-      }]
-    };
-    
     try {
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(requestBody)
+      const { data, error } = await supabase.functions.invoke('gemini-api', {
+        body: {
+          type: 'generateContent',
+          prompt: prompt
+        }
       });
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Gemini API call failed: ${response.status} ${errorText}`);
-      }
-      
-      return await response.json();
+
+      if (error) throw error;
+      return data;
     } catch (error) {
-      console.error('Error calling Gemini API:', error);
+      console.error('Error calling Gemini API via edge function:', error);
       throw error;
     }
   }
@@ -65,46 +52,23 @@ class GeminiService {
   async generateRoadmap(params: RoadmapGenerationParams): Promise<Roadmap> {
     const { topic, timeframe } = params;
     
-    const timeframePrompt = timeframe 
-      ? `Design this roadmap to be completable within ${timeframe}.` 
-      : "Design this roadmap with a reasonable timeframe.";
-    
-    const prompt = `
-      Create a learning roadmap for the topic: "${topic}". ${timeframePrompt}
-      
-      Format your response as a JSON object with the following structure:
-      {
-        "id": "unique-id",
-        "title": "Learning Path: ${topic}",
-        "description": "A detailed description of this learning path",
-        "nodes": [
-          {
-            "id": "node-1",
-            "title": "Node Title",
-            "description": "Brief description of this learning node",
-            "completed": false,
-            "xp": 100,
-            "position": { "x": 0, "y": 0 },
-            "connections": ["node-2", "node-3"]
-          }
-        ]
-      }
-      
-      Include 5-8 nodes for a complete but concise learning path.
-      Position the nodes in a logical layout where x and y values are between 0 and 1000.
-      Make connections reflect logical dependencies between topics.
-      Use descriptive titles and informative descriptions for each node.
-    `;
-    
     try {
-      const response = await this.callGeminiAPI(prompt);
+      const { data, error } = await supabase.functions.invoke('gemini-api', {
+        body: {
+          type: 'generateRoadmap',
+          topic,
+          timeframe
+        }
+      });
+
+      if (error) throw error;
       
-      if (response.candidates && response.candidates.length > 0 && 
-          response.candidates[0].content && 
-          response.candidates[0].content.parts && 
-          response.candidates[0].content.parts.length > 0) {
+      if (data.candidates && data.candidates.length > 0 && 
+          data.candidates[0].content && 
+          data.candidates[0].content.parts && 
+          data.candidates[0].content.parts.length > 0) {
         
-        const content = response.candidates[0].content.parts[0].text;
+        const content = data.candidates[0].content.parts[0].text;
         let jsonStart = content.indexOf('{');
         let jsonEnd = content.lastIndexOf('}') + 1;
         
@@ -118,43 +82,40 @@ class GeminiService {
         // Add current timestamp
         roadmap.createdAt = new Date().toISOString();
         
+        // Ensure all nodes have content property set to null
+        roadmap.nodes = roadmap.nodes.map((node: any) => ({
+          ...node,
+          content: node.content === undefined ? null : node.content
+        }));
+        
         return roadmap;
       } else {
         throw new Error("Invalid response structure from Gemini API");
       }
     } catch (error) {
       console.error('Error generating roadmap:', error);
-      
-      // Return a fallback roadmap if API fails
-      return this.generateFallbackRoadmap(topic);
+      throw error;
     }
   }
 
   async generateNodeContent(topic: string, nodeTitle: string): Promise<{ content: string }> {
-    const prompt = `
-      Create detailed educational content about "${nodeTitle}" within the broader topic of "${topic}".
-      
-      Format the content using Markdown, including:
-      - A brief introduction to ${nodeTitle}
-      - Main concepts and principles
-      - Examples or case studies
-      - Practice exercises or questions
-      - Additional resources for further learning
-      
-      Make the content educational, informative, and engaging for someone learning this topic.
-      Use proper headings, bullet points, and formatting to organize the content.
-      Keep the total length to about 800-1200 words.
-    `;
-    
     try {
-      const response = await this.callGeminiAPI(prompt);
+      const { data, error } = await supabase.functions.invoke('gemini-api', {
+        body: {
+          type: 'generateNodeContent',
+          topic,
+          nodeTitle
+        }
+      });
+
+      if (error) throw error;
       
-      if (response.candidates && response.candidates.length > 0 && 
-          response.candidates[0].content && 
-          response.candidates[0].content.parts && 
-          response.candidates[0].content.parts.length > 0) {
+      if (data.candidates && data.candidates.length > 0 && 
+          data.candidates[0].content && 
+          data.candidates[0].content.parts && 
+          data.candidates[0].content.parts.length > 0) {
         
-        const content = response.candidates[0].content.parts[0].text;
+        const content = data.candidates[0].content.parts[0].text;
         
         return { content };
       } else {
@@ -162,11 +123,7 @@ class GeminiService {
       }
     } catch (error) {
       console.error('Error generating node content:', error);
-      
-      // Return fallback content
-      return {
-        content: `# ${nodeTitle}\n\n*Content generation is currently unavailable. Please try again later.*`
-      };
+      throw error;
     }
   }
 
@@ -222,98 +179,8 @@ class GeminiService {
       }
     } catch (error) {
       console.error('Error generating quiz:', error);
-      
-      // Return a fallback quiz
-      return this.generateFallbackQuiz(nodeId);
+      throw error;
     }
-  }
-
-  private generateFallbackRoadmap(topic: string): Roadmap {
-    return {
-      id: `fallback-${Date.now()}`,
-      title: `Learning Path: ${topic}`,
-      description: `A learning roadmap for understanding ${topic}`,
-      nodes: [
-        {
-          id: 'node-1',
-          title: 'Introduction to the Topic',
-          description: 'Basic understanding and fundamental concepts',
-          completed: false,
-          xp: 100,
-          position: { x: 100, y: 200 },
-          connections: ['node-2']
-        },
-        {
-          id: 'node-2',
-          title: 'Key Principles',
-          description: 'Core theories and important principles',
-          completed: false,
-          xp: 150,
-          position: { x: 300, y: 300 },
-          connections: ['node-3', 'node-4']
-        },
-        {
-          id: 'node-3',
-          title: 'Practical Applications',
-          description: 'Real-world applications and case studies',
-          completed: false,
-          xp: 200,
-          position: { x: 500, y: 200 },
-          connections: ['node-5']
-        },
-        {
-          id: 'node-4',
-          title: 'Advanced Concepts',
-          description: 'Deep dive into complex aspects',
-          completed: false,
-          xp: 250,
-          position: { x: 500, y: 400 },
-          connections: ['node-5']
-        },
-        {
-          id: 'node-5',
-          title: 'Mastery & Specialization',
-          description: 'Expert-level knowledge and specialized topics',
-          completed: false,
-          xp: 300,
-          position: { x: 700, y: 300 },
-          connections: []
-        }
-      ],
-      createdAt: new Date().toISOString()
-    };
-  }
-
-  private generateFallbackQuiz(nodeId: string): any {
-    return {
-      nodeId,
-      questions: [
-        {
-          id: 'q1',
-          question: 'Which of the following is a common best practice?',
-          options: [
-            { id: 'a', text: 'Option A - Correct answer' },
-            { id: 'b', text: 'Option B' },
-            { id: 'c', text: 'Option C' },
-            { id: 'd', text: 'Option D' }
-          ],
-          correctOption: 'a',
-          explanation: 'This is the correct answer because...'
-        },
-        {
-          id: 'q2',
-          question: 'What is an important concept to understand?',
-          options: [
-            { id: 'a', text: 'Option A' },
-            { id: 'b', text: 'Option B - Correct answer' },
-            { id: 'c', text: 'Option C' },
-            { id: 'd', text: 'Option D' }
-          ],
-          correctOption: 'b',
-          explanation: 'This is the correct answer because...'
-        }
-      ]
-    };
   }
 }
 

@@ -4,7 +4,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Send, Bot, User, Loader2 } from 'lucide-react';
 import MockAIService from '@/services/MockAIService';
-import { useConfig } from '@/components/layout/MainLayout';
 import MarkdownContent from './MarkdownContent';
 
 interface ChatMessage {
@@ -15,7 +14,6 @@ interface ChatMessage {
 }
 
 const AIChat = () => {
-  const { googleApiKey } = useConfig();
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: '1',
@@ -27,12 +25,6 @@ const AIChat = () => {
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  
-  useEffect(() => {
-    if (googleApiKey) {
-      MockAIService.setGoogleApiKey(googleApiKey);
-    }
-  }, [googleApiKey]);
   
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
