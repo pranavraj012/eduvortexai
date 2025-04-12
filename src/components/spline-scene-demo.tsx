@@ -49,7 +49,7 @@ export function SplineHero() {
               size="lg"
               asChild
             >
-              <Link to="/learn">
+              <Link to="/app/learn">
                 <Brain className="mr-2 h-4 w-4" />
                 Explore Pathways
               </Link>
