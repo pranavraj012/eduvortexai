@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const corsHeaders = {
@@ -188,18 +187,43 @@ serve(async (req) => {
       const url = `https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
       
       const prompt = `
-        Create detailed educational content about "${body.nodeTitle}" within the broader topic of "${body.topic}".
+        Create comprehensive, educational content about "${body.nodeTitle}" within the broader topic of "${body.topic}".
         
-        Format the content using Markdown, including:
-        - A brief introduction to ${body.nodeTitle}
-        - Main concepts and principles
-        - Examples or case studies
-        - Practice exercises or questions
-        - Additional resources for further learning
+        Format the content using Markdown, and include ALL of the following sections:
         
-        Make the content educational, informative, and engaging for someone learning this topic.
-        Use proper headings, bullet points, and formatting to organize the content.
-        Keep the total length to about 800-1200 words.
+        ## Introduction
+        - Give a clear, engaging introduction to ${body.nodeTitle}
+        - Explain why this topic is important in the context of ${body.topic}
+        - Provide a brief overview of what the reader will learn
+        
+        ## Key Concepts
+        - Explain 3-5 fundamental concepts related to ${body.nodeTitle}
+        - Use clear explanations with real-world examples
+        - Include any relevant formulas, principles, or theories
+        
+        ## Practical Applications
+        - Show how ${body.nodeTitle} is used in real-world scenarios
+        - Give specific examples of implementations or use cases
+        - Explain the benefits and potential challenges
+        
+        ## Learning Exercises
+        - Provide 2-3 hands-on exercises or projects for practice
+        - Include step-by-step instructions
+        - Explain what skills each exercise will help develop
+        
+        ## Additional Resources
+        - List 3-5 high-quality resources for further learning (books, courses, websites, videos)
+        - Briefly describe what each resource offers
+        
+        ## Summary
+        - Summarize the key takeaways
+        - Explain how this topic connects to other areas in ${body.topic}
+        - Suggest next steps for continued learning
+        
+        Make the content educational, detailed, and engaging for someone learning this topic.
+        Use proper Markdown formatting including headings, bullet points, code blocks where relevant, and emphasis.
+        Aim for approximately 1000-1500 words of substantial, educational content.
+        Focus on accuracy, clarity, and educational value.
       `;
       
       const response = await fetch(url, {
