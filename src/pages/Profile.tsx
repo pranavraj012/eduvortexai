@@ -1,13 +1,27 @@
 
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useLearning } from '@/context/LearningContext';
 import { User, Book, GraduationCap, Award, Settings } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/context/AuthContext';
+import { toast } from '@/components/ui/use-toast';
+import { Loader2 } from 'lucide-react';
+
+interface UserProfile {
+  username: string;
+  email: string;
+  avatar_url: string | null;
+}
 
 const Profile = () => {
   const { stats, achievements, userRoadmaps } = useLearning();
+  const { user } = useAuth();
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [loading, setLoading] = useState(true);
   
   // Calculate levels based on XP
   const level = Math.floor(stats.totalXp / 100) + 1;
@@ -16,6 +30,84 @@ const Profile = () => {
   
   // Calculate unread achievements
   const unlockedAchievements = achievements.filter(a => a.unlockedAt).length;
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      if (!user) {
+        setLoading(false);
+        return;
+      }
+      
+      try {
+        // Get user profile from database
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('username, avatar_url')
+          .eq('id', user.id)
+          .single();
+        
+        if (error) throw error;
+        
+        setProfile({
+          username: data.username || user.email?.split('@')[0] || 'User',
+          email: user.email || '',
+          avatar_url: data.avatar_url
+        });
+      } catch (error) {
+        console.error('Error fetching profile:', error);
+        toast({
+          title: 'Error',
+          description: 'Failed to load profile data',
+          variant: 'destructive'
+        });
+        
+        // Use default values if profile fetch fails
+        if (user?.email) {
+          setProfile({
+            username: user.email.split('@')[0] || 'User',
+            email: user.email,
+            avatar_url: null
+          });
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchProfile();
+    
+    // Subscribe to realtime changes for profile and user stats
+    const profileChannel = supabase
+      .channel('profile-changes')
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'profiles',
+        filter: `id=eq.${user?.id}`
+      }, (payload) => {
+        setProfile(prev => ({
+          ...prev!,
+          username: payload.new.username || prev?.username || 'User',
+          avatar_url: payload.new.avatar_url
+        }));
+      })
+      .subscribe();
+      
+    return () => {
+      supabase.removeChannel(profileChannel);
+    };
+  }, [user]);
+  
+  if (loading) {
+    return (
+      <div className="container mx-auto py-6 flex items-center justify-center h-[80vh]">
+        <div className="text-center">
+          <Loader2 className="h-10 w-10 animate-spin mx-auto mb-4 text-edu-purple" />
+          <p>Loading profile...</p>
+        </div>
+      </div>
+    );
+  }
   
   return (
     <div className="container mx-auto py-6">
@@ -26,7 +118,7 @@ const Profile = () => {
             <CardHeader className="pb-0">
               <div className="flex justify-between">
                 <Avatar className="h-20 w-20">
-                  <AvatarImage src="" alt="Profile" />
+                  <AvatarImage src={profile?.avatar_url || ""} alt="Profile" />
                   <AvatarFallback className="text-3xl bg-edu-purple/20">
                     <User className="h-10 w-10 text-edu-purple" />
                   </AvatarFallback>
@@ -38,8 +130,8 @@ const Profile = () => {
               </div>
             </CardHeader>
             <CardContent className="pt-4">
-              <h2 className="text-2xl font-bold mb-1">User Name</h2>
-              <p className="text-muted-foreground mb-4">user@example.com</p>
+              <h2 className="text-2xl font-bold mb-1">{profile?.username}</h2>
+              <p className="text-muted-foreground mb-4">{profile?.email}</p>
               
               <div className="flex items-center space-x-2 mb-2">
                 <div className="purple-glow rounded-full p-1">
@@ -120,7 +212,7 @@ const Profile = () => {
                   {userRoadmaps.map(roadmap => {
                     const completedNodes = roadmap.nodes.filter(n => n.completed).length;
                     const totalNodes = roadmap.nodes.length;
-                    const percentComplete = Math.round((completedNodes / totalNodes) * 100);
+                    const percentComplete = totalNodes > 0 ? Math.round((completedNodes / totalNodes) * 100) : 0;
                     
                     return (
                       <div key={roadmap.id} className="glass-card p-4 rounded-lg">

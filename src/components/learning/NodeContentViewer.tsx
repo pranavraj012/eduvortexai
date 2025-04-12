@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { RoadmapNode } from '@/context/LearningContext';
 import { Loader2, BookOpen, Download, Share2 } from 'lucide-react';
 import MarkdownContent from './MarkdownContent';
-import MockAIService from '@/services/MockAIService';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/components/ui/use-toast';
 
 interface NodeContentViewerProps {
@@ -30,11 +30,27 @@ const NodeContentViewer: React.FC<NodeContentViewerProps> = ({
       if (!node.content) {
         setIsLoading(true);
         try {
-          const content = await MockAIService.generateNodeContent(topic, node.title);
-          if (content && content.content) {
-            onContentUpdate(roadmapId, node.id, content.content);
+          const { data, error } = await supabase.functions.invoke('gemini-api', {
+            body: {
+              type: 'generateNodeContent',
+              topic,
+              nodeTitle: node.title
+            }
+          });
+          
+          if (error) {
+            throw new Error(`Error from edge function: ${error.message}`);
+          }
+          
+          if (data.candidates && data.candidates.length > 0 && 
+              data.candidates[0].content && 
+              data.candidates[0].content.parts && 
+              data.candidates[0].content.parts.length > 0) {
+            
+            const content = data.candidates[0].content.parts[0].text;
+            onContentUpdate(roadmapId, node.id, content);
           } else {
-            throw new Error("Generated content is empty");
+            throw new Error("Generated content is empty or invalid format");
           }
         } catch (error) {
           console.error("Error generating node content:", error);
@@ -91,15 +107,31 @@ const NodeContentViewer: React.FC<NodeContentViewerProps> = ({
   const handleRetryGeneration = async () => {
     setIsLoading(true);
     try {
-      const content = await MockAIService.generateNodeContent(topic, node.title);
-      if (content && content.content) {
-        onContentUpdate(roadmapId, node.id, content.content);
+      const { data, error } = await supabase.functions.invoke('gemini-api', {
+        body: {
+          type: 'generateNodeContent',
+          topic,
+          nodeTitle: node.title
+        }
+      });
+      
+      if (error) {
+        throw new Error(`Error from edge function: ${error.message}`);
+      }
+      
+      if (data.candidates && data.candidates.length > 0 && 
+          data.candidates[0].content && 
+          data.candidates[0].content.parts && 
+          data.candidates[0].content.parts.length > 0) {
+        
+        const content = data.candidates[0].content.parts[0].text;
+        onContentUpdate(roadmapId, node.id, content);
         toast({
           title: "Content regenerated",
           description: "New learning content has been generated successfully.",
         });
       } else {
-        throw new Error("Generated content is empty");
+        throw new Error("Generated content is empty or invalid format");
       }
     } catch (error) {
       console.error("Error regenerating node content:", error);

@@ -1,5 +1,6 @@
 
-import GeminiService from './GeminiService';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from '@/components/ui/use-toast';
 
 interface RoadmapGenerationParams {
   topic: string;
@@ -13,28 +14,45 @@ interface AIResponse {
 
 class MockAIService {
   private static geminiApiKey: string = 'AIzaSyDSLvLlDoP-apMrXXDJksj7apmInfCnimg';
-  private static geminiService: GeminiService | null = null;
 
   static setGoogleApiKey(apiKey: string) {
     this.geminiApiKey = apiKey;
-    this.geminiService = new GeminiService(apiKey);
     console.info('Google API key configured successfully');
   }
 
   static async generateRoadmap(params: RoadmapGenerationParams) {
     try {
-      if (!this.geminiService) {
-        this.geminiService = new GeminiService(this.geminiApiKey);
+      console.log('Calling generateRoadmap with params:', params);
+      
+      const { data, error } = await supabase.functions.invoke('gemini-api', {
+        body: {
+          type: 'generateRoadmap',
+          topic: params.topic,
+          timeframe: params.timeframe
+        }
+      });
+      
+      if (error) {
+        console.error('Error from edge function:', error);
+        throw error;
       }
       
-      const result = await this.geminiService.generateRoadmap(params);
+      // For direct calls to the edge function, the response is the roadmap itself
+      if (!data.id || !data.nodes) {
+        throw new Error('Invalid roadmap structure returned from API');
+      }
       
       // Ensure we have a reasonable number of nodes (10-15)
-      if (result.nodes && result.nodes.length < 10) {
-        console.warn(`Generated roadmap has only ${result.nodes.length} nodes, which is less than expected.`);
+      if (data.nodes && data.nodes.length < 10) {
+        console.warn(`Generated roadmap has only ${data.nodes.length} nodes, which is less than expected.`);
+        toast({
+          title: "Warning",
+          description: "Generated roadmap has fewer nodes than expected. You might want to regenerate it.",
+          variant: "warning"
+        });
       }
       
-      return result;
+      return data;
     } catch (error) {
       console.error('Error in generateRoadmap:', error);
       throw error;
@@ -43,11 +61,32 @@ class MockAIService {
 
   static async generateNodeContent(topic: string, nodeTitle: string) {
     try {
-      if (!this.geminiService) {
-        this.geminiService = new GeminiService(this.geminiApiKey);
+      console.log('Calling generateNodeContent for:', nodeTitle);
+      
+      const { data, error } = await supabase.functions.invoke('gemini-api', {
+        body: {
+          type: 'generateNodeContent',
+          topic,
+          nodeTitle
+        }
+      });
+      
+      if (error) {
+        console.error('Error from edge function:', error);
+        throw error;
       }
       
-      return await this.geminiService.generateNodeContent(topic, nodeTitle);
+      // Extract content from the Gemini API response
+      if (data.candidates && data.candidates.length > 0 && 
+          data.candidates[0].content && 
+          data.candidates[0].content.parts && 
+          data.candidates[0].content.parts.length > 0) {
+        
+        const content = data.candidates[0].content.parts[0].text;
+        return { content };
+      } else {
+        throw new Error("Invalid response from Gemini API");
+      }
     } catch (error) {
       console.error('Error in generateNodeContent:', error);
       throw error;
@@ -56,11 +95,45 @@ class MockAIService {
 
   static async generateQuiz(topic: string, nodeId: string) {
     try {
-      if (!this.geminiService) {
-        this.geminiService = new GeminiService(this.geminiApiKey);
+      console.log('Calling generateQuiz for:', topic);
+      
+      const { data, error } = await supabase.functions.invoke('gemini-api', {
+        body: {
+          type: 'generateQuiz',
+          topic,
+          nodeId
+        }
+      });
+      
+      if (error) {
+        console.error('Error from edge function:', error);
+        throw error;
       }
       
-      return await this.geminiService.generateQuiz(topic, nodeId);
+      // Extract the quiz data from the Gemini API response
+      if (data.candidates && data.candidates.length > 0 && 
+          data.candidates[0].content && 
+          data.candidates[0].content.parts && 
+          data.candidates[0].content.parts.length > 0) {
+        
+        const content = data.candidates[0].content.parts[0].text;
+        let jsonStart = content.indexOf('{');
+        let jsonEnd = content.lastIndexOf('}') + 1;
+        
+        if (jsonStart === -1 || jsonEnd === 0) {
+          throw new Error("JSON data not found in response");
+        }
+        
+        try {
+          const jsonString = content.substring(jsonStart, jsonEnd);
+          return JSON.parse(jsonString);
+        } catch (parseError) {
+          console.error('Failed to parse quiz JSON:', parseError);
+          throw new Error("Failed to parse quiz JSON: " + parseError.message);
+        }
+      } else {
+        throw new Error("Invalid response structure from Gemini API");
+      }
     } catch (error) {
       console.error('Error in generateQuiz:', error);
       throw error;
@@ -69,22 +142,27 @@ class MockAIService {
 
   static async chatWithAI(message: string): Promise<AIResponse> {
     try {
-      if (!this.geminiService) {
-        this.geminiService = new GeminiService(this.geminiApiKey);
+      console.log('Calling chatWithAI with message:', message);
+      
+      const { data, error } = await supabase.functions.invoke('gemini-api', {
+        body: {
+          type: 'chatWithAI',
+          message
+        }
+      });
+      
+      if (error) {
+        console.error('Error from edge function:', error);
+        throw error;
       }
       
-      // Use Gemini API for chat responses
-      const response = await this.geminiService.callGeminiAPI(
-        `You are an AI learning assistant helping a user with their education. 
-         Respond to this message in a helpful, educational manner: "${message}"`
-      );
-      
-      if (response.candidates && response.candidates.length > 0 && 
-          response.candidates[0].content && 
-          response.candidates[0].content.parts && 
-          response.candidates[0].content.parts.length > 0) {
+      // Extract content from the Gemini API response
+      if (data.candidates && data.candidates.length > 0 && 
+          data.candidates[0].content && 
+          data.candidates[0].content.parts && 
+          data.candidates[0].content.parts.length > 0) {
         
-        const content = response.candidates[0].content.parts[0].text;
+        const content = data.candidates[0].content.parts[0].text;
         return {
           content,
           timestamp: new Date().toISOString()
