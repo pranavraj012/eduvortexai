@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { RoadmapNode } from '@/context/LearningContext';
-import { Loader2, BookOpen, Download, Share2 } from 'lucide-react';
+import { Loader2, BookOpen, Download, Share2, RefreshCw } from 'lucide-react';
 import MarkdownContent from './MarkdownContent';
 import MockAIService from '@/services/MockAIService';
 import { toast } from '@/components/ui/use-toast';
@@ -120,7 +120,7 @@ const NodeContentViewer: React.FC<NodeContentViewerProps> = ({
           <Loader2 className="h-8 w-8 mx-auto mb-4 animate-spin text-edu-purple" />
           <h3 className="text-lg font-medium mb-2">Generating Learning Content</h3>
           <p className="text-muted-foreground">
-            Our AI is creating personalized content for {node.title}...
+            Our AI is creating comprehensive educational content for {node.title}...
           </p>
         </div>
       </div>
@@ -136,6 +136,9 @@ const NodeContentViewer: React.FC<NodeContentViewerProps> = ({
         </div>
         
         <div className="flex space-x-2">
+          <Button variant="outline" size="icon" onClick={handleRetryGeneration} title="Regenerate content">
+            <RefreshCw className="h-4 w-4" />
+          </Button>
           <Button variant="outline" size="icon" onClick={handleDownloadContent} title="Download content">
             <Download className="h-4 w-4" />
           </Button>
@@ -155,7 +158,7 @@ const NodeContentViewer: React.FC<NodeContentViewerProps> = ({
           <div className="text-center py-8">
             <p className="text-muted-foreground mb-4">No content available.</p>
             <Button onClick={handleRetryGeneration}>
-              Retry Content Generation
+              Generate Content
             </Button>
           </div>
         )}

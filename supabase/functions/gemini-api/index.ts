@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const corsHeaders = {
@@ -222,8 +223,12 @@ serve(async (req) => {
         
         Make the content educational, detailed, and engaging for someone learning this topic.
         Use proper Markdown formatting including headings, bullet points, code blocks where relevant, and emphasis.
-        Aim for approximately 1000-1500 words of substantial, educational content.
+        Aim for approximately 1500-2000 words of substantial, educational content.
         Focus on accuracy, clarity, and educational value.
+        
+        DO NOT INCLUDE ANY DISCLAIMERS OR NOTES ABOUT BEING AN AI.
+        DO NOT MENTION THAT YOU ARE AN AI ASSISTANT.
+        WRITE AS AN EDUCATIONAL EXPERT IN THIS FIELD.
       `;
       
       const response = await fetch(url, {
